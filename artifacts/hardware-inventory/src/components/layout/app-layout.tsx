@@ -21,7 +21,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import OfflineBanner from "@/components/layout/offline-banner";
 import PwaInstallPrompt from "@/components/layout/pwa-install-prompt";
-import PullToRefresh from "@/components/layout/pull-to-refresh";
 import { useOffline } from "@/lib/offline-context";
 
 const mainNavItems = [
@@ -237,16 +236,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Pull to refresh (mobile only) */}
-        <PullToRefresh />
-
         {/* Page Content */}
         <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full">
           {children}
         </main>
 
         {/* Mobile Bottom Tab Bar */}
-        <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 flex justify-around items-center h-16 px-1 pb-safe z-40">
+        <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 flex justify-around items-start pt-2 px-1 pb-safe z-40" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)" }}>
           {bottomNavItems.map((item) => {
             const isActive =
               location === item.href ||

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { categories, currentUser } from "@/lib/mock-data";
 import { getProducts, getMovements, type Product, type Movement } from "@/lib/store";
 import { formatPeso, cn } from "@/lib/utils";
+import PullToRefresh from "@/components/layout/pull-to-refresh";
 
 function relativeTime(timestamp: string): string {
   const now = new Date();
@@ -88,9 +89,13 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
 
-  useEffect(() => {
+  function loadData() {
     setProducts(getProducts());
     setMovements(getMovements());
+  }
+
+  useEffect(() => {
+    loadData();
     const timer = setTimeout(() => setLoaded(true), SKELETON_MS);
     return () => clearTimeout(timer);
   }, []);
@@ -183,6 +188,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <PullToRefresh onRefresh={loadData} />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           {greeting}, {currentUser.name.split(" ")[0]}!

@@ -29,6 +29,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useOffline } from "@/lib/offline-context";
+import PullToRefresh from "@/components/layout/pull-to-refresh";
 import { categories, currentUser } from "@/lib/mock-data";
 import {
   getProducts,
@@ -813,9 +814,13 @@ export default function ProductsPage() {
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
   const [allConversions, setAllConversions] = useState<UnitConversion[]>([]);
 
-  useEffect(() => {
+  function loadData() {
     setLocalProducts(getProducts());
     setAllConversions(getConversions());
+  }
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   function handleApplyFilter(col: ColKey, sort: SortDir | null, selectedValues: Set<string>) {
@@ -908,6 +913,7 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
+      <PullToRefresh onRefresh={loadData} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
         <div>

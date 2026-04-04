@@ -12,6 +12,7 @@ import {
   Minus,
 } from "lucide-react";
 import { useOffline } from "@/lib/offline-context";
+import PullToRefresh from "@/components/layout/pull-to-refresh";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -479,6 +480,10 @@ export default function MovementsPage() {
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  function loadData() {
+    setMovements(getMovements());
+  }
+
   useEffect(() => {
     const data = getMovements();
     setMovements(data);
@@ -538,6 +543,7 @@ export default function MovementsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      <PullToRefresh onRefresh={loadData} />
       <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Stock Movements</h1>
