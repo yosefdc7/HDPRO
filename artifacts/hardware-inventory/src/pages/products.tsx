@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -27,11 +27,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { products as initialProducts, categories, unitConversions, stockMovements, currentUser } from "@/lib/mock-data";
+import { categories, currentUser } from "@/lib/mock-data";
+import {
+  getProducts,
+  getMovements,
+  getConversions,
+  addMovementAndUpdateStock,
+  addProduct,
+  type Product,
+  type Movement,
+  type UnitConversion,
+} from "@/lib/store";
 import { formatPeso, cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
-type Product = (typeof initialProducts)[number];
 type SortKey = "name" | "category" | "stock_quantity" | "primary_unit" | "cost_price" | "selling_price";
 type SortDir = "asc" | "desc";
 type StockFilter = "all" | "low" | "out";
@@ -58,13 +67,13 @@ interface AddProductModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (p: Product) => void;
+  initialBarcode?: string;
 }
 
-function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
-  const { toast } = useToast();
+function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProductModalProps) {
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
-  const [barcode, setBarcode] = useState("");
+  const [barcode, setBarcode] = useState(initialBarcode);
   const [categoryId, setCategoryId] = useState(categories[0].id);
   const [unit, setUnit] = useState("piece");
   const [stock, setStock] = useState("");
@@ -73,6 +82,10 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
   const [sellingPrice, setSellingPrice] = useState("");
   const [conversions, setConversions] = useState<UnitConvRow[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (open) setBarcode(initialBarcode);
+  }, [open, initialBarcode]);
 
   const margin =
     parseFloat(costPrice) > 0 && parseFloat(sellingPrice) > 0
@@ -120,7 +133,7 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
       category_id: categoryId,
       name: name.trim(),
       sku: sku.trim(),
-      barcode: barcode.trim() || undefined!,
+      barcode: barcode.trim() || undefined,
       primary_unit: unit,
       stock_quantity: Number(stock),
       reorder_level: Number(reorderLevel),
@@ -129,31 +142,20 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
       is_active: true,
       image_placeholder: cat.icon,
     };
-    // Save product to localStorage
-    const stored = JSON.parse(localStorage.getItem("hw_products") || "[]");
-    stored.push(newProduct);
-    localStorage.setItem("hw_products", JSON.stringify(stored));
-    
-    // Save unit conversions to localStorage if any
-    if (conversions.length > 0) {
-      const validConversions = conversions.filter(c => c.from_unit.trim() && c.factor.trim() && !isNaN(Number(c.factor)));
-      if (validConversions.length > 0) {
-        const storedConv = JSON.parse(localStorage.getItem("hw_unit_conversions") || "[]");
-        validConversions.forEach((c) => {
-          storedConv.push({
-            id: c.id,
-            product_id: productId,
-            from_unit: c.from_unit,
-            to_unit: c.to_unit,
-            factor: Number(c.factor),
-          });
-        });
-        localStorage.setItem("hw_unit_conversions", JSON.stringify(storedConv));
-      }
-    }
-    
+
+    const validConversions: UnitConversion[] = conversions
+      .filter((c) => c.from_unit.trim() && c.factor.trim() && !isNaN(Number(c.factor)) && Number(c.factor) > 0)
+      .map((c) => ({
+        id: c.id,
+        product_id: productId,
+        from_unit: c.from_unit.trim(),
+        to_unit: c.to_unit || unit,
+        factor: Number(c.factor),
+      }));
+
+    addProduct(newProduct, validConversions);
     onSave(newProduct);
-    toast({ title: "Product added!", description: `${newProduct.name} has been added to your inventory.` });
+    toast({ title: "Product added!", description: `${newProduct.name} has been added.`, variant: "success" });
     handleClose();
   }
 
@@ -196,7 +198,7 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
                 id="prod-category"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 data-testid="prod-category-select"
               >
                 {categories.map((c) => (
@@ -255,7 +257,7 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
               </Button>
             </div>
             {conversions.length === 0 && (
-              <p className="text-xs text-slate-400 italic">No unit conversions. Add rows above.</p>
+              <p className="text-xs text-slate-400 italic">No conversions. Click "Add Row" to define (e.g. 1 roll = 150 meters).</p>
             )}
             <div className="space-y-2">
               {conversions.map((row) => (
@@ -289,16 +291,24 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
 
 interface SlideoverProps {
   product: Product | null;
+  allConversions: UnitConversion[];
   onClose: () => void;
   onStockUpdated: (id: string, newQty: number) => void;
 }
 
-function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) {
-  const { toast } = useToast();
+function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: SlideoverProps) {
   const [action, setAction] = useState<"in" | "out" | null>(null);
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
   const [qtyError, setQtyError] = useState("");
+  const [recentMovements, setRecentMovements] = useState<Movement[]>([]);
+
+  useEffect(() => {
+    if (product) {
+      const all = getMovements();
+      setRecentMovements(all.filter((m) => m.product_id === product.id).slice(0, 5));
+    }
+  }, [product]);
 
   function handleStockAction() {
     const n = Number(qty);
@@ -308,13 +318,13 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
     }
     if (!product) return;
     if (action === "out" && n > product.stock_quantity) {
-      setQtyError("Exceeds current stock");
+      setQtyError(`Exceeds current stock (${product.stock_quantity})`);
       return;
     }
-    const newQty = action === "in" ? product.stock_quantity + n : product.stock_quantity - n;
-    const movement = {
+
+    const movement: Movement = {
       id: `sm-${Date.now()}`,
-      type: action,
+      type: action!,
       product_id: product.id,
       product_name: product.name,
       quantity: n,
@@ -323,23 +333,17 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
       by: currentUser.name.split(" ")[0],
       timestamp: new Date().toISOString(),
     };
-    // Save movement to localStorage
-    const stored = JSON.parse(localStorage.getItem("hw_movements") || "[]");
-    stored.unshift(movement);
-    localStorage.setItem("hw_movements", JSON.stringify(stored));
-    
-    // Update product stock in localStorage
-    const products = JSON.parse(localStorage.getItem("hw_products") || "[]");
-    const prodIndex = products.findIndex((p: Product) => p.id === product.id);
-    if (prodIndex >= 0) {
-      products[prodIndex].stock_quantity = newQty;
-      localStorage.setItem("hw_products", JSON.stringify(products));
-    }
-    
-    onStockUpdated(product.id, newQty);
+
+    const { newStock } = addMovementAndUpdateStock(movement);
+    onStockUpdated(product.id, newStock);
+
+    const updatedMovements = getMovements();
+    setRecentMovements(updatedMovements.filter((m) => m.product_id === product.id).slice(0, 5));
+
     toast({
       title: action === "in" ? "Stock added!" : "Stock removed!",
       description: `${n} ${product.primary_unit} ${action === "in" ? "added to" : "removed from"} ${product.name}.`,
+      variant: "success",
     });
     setAction(null);
     setQty("");
@@ -357,14 +361,7 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
   if (!product) return null;
 
   const category = categories.find((c) => c.id === product.category_id);
-  const storedConversions = JSON.parse(localStorage.getItem("hw_unit_conversions") || "[]");
-  const allConversions = [...unitConversions, ...storedConversions];
   const conversions = allConversions.filter((uc) => uc.product_id === product.id);
-  
-  const storedMovements = JSON.parse(localStorage.getItem("hw_movements") || "[]");
-  const allMovements = [...storedMovements, ...stockMovements];
-  const movements = allMovements.filter((m) => m.product_id === product.id).slice(0, 5);
-  
   const isOut = product.stock_quantity === 0;
   const isLow = product.stock_quantity > 0 && product.stock_quantity <= product.reorder_level;
   const markup = product.cost_price > 0
@@ -373,19 +370,11 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/30 z-40 transition-opacity"
-        onClick={onClose}
-        data-testid="slideover-backdrop"
-      />
-
-      {/* Panel */}
+      <div className="fixed inset-0 bg-black/30 z-40 transition-opacity" onClick={onClose} data-testid="slideover-backdrop" />
       <div
         className="fixed right-0 top-0 h-full w-full md:w-[420px] bg-white z-50 shadow-2xl overflow-y-auto animate-in slide-in-from-right-8 duration-300"
         data-testid="product-slideover"
       >
-        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <span className="text-3xl">{product.image_placeholder}</span>
@@ -405,83 +394,44 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Product info grid */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-0.5">Category</p>
-              <p className="font-medium text-slate-900 text-sm">{category?.icon} {category?.name}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-0.5">Unit</p>
-              <p className="font-medium text-slate-900 text-sm">{product.primary_unit}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-0.5">Cost Price</p>
-              <p className="font-medium text-slate-900 text-sm">{formatPeso(product.cost_price)}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-0.5">Selling Price</p>
-              <p className="font-medium text-blue-700 text-sm font-bold">{formatPeso(product.selling_price)}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-0.5">Current Stock</p>
-              <p className={cn("font-bold text-sm", isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-green-600")}>
-                {product.stock_quantity} {product.primary_unit}
-              </p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-0.5">Markup</p>
-              <p className="font-medium text-green-700 text-sm">{markup}%</p>
-            </div>
+            {[
+              { label: "Category", value: `${category?.icon} ${category?.name}` },
+              { label: "Unit", value: product.primary_unit },
+              { label: "Cost Price", value: formatPeso(product.cost_price) },
+              { label: "Selling Price", value: formatPeso(product.selling_price), highlight: true },
+              { label: "Current Stock", value: `${product.stock_quantity} ${product.primary_unit}`, stockColor: isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-green-600" },
+              { label: "Markup", value: `${markup}%`, greenText: true },
+            ].map((item) => (
+              <div key={item.label} className="bg-slate-50 rounded-lg p-3">
+                <p className="text-xs text-slate-500 mb-0.5">{item.label}</p>
+                <p className={cn("font-medium text-sm", item.highlight ? "text-blue-700 font-bold" : item.stockColor || item.greenText ? (item.greenText ? "text-green-700" : item.stockColor) : "text-slate-900")}>
+                  {item.value}
+                </p>
+              </div>
+            ))}
           </div>
 
-          {/* Quick actions */}
           {action === null ? (
             <div className="flex gap-3">
-              <Button
-                onClick={() => setAction("in")}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
-                data-testid="stock-in-btn"
-              >
+              <Button onClick={() => setAction("in")} className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2" data-testid="stock-in-btn">
                 <ArrowUpCircle className="h-4 w-4" /> Stock In
               </Button>
-              <Button
-                onClick={() => setAction("out")}
-                variant="outline"
-                className="flex-1 border-red-200 text-red-700 hover:bg-red-50 gap-2"
-                data-testid="stock-out-btn"
-                disabled={isOut}
-              >
+              <Button onClick={() => setAction("out")} variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50 gap-2" data-testid="stock-out-btn" disabled={isOut}>
                 <ArrowDownCircle className="h-4 w-4" /> Stock Out
               </Button>
             </div>
           ) : (
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3" data-testid="stock-action-form">
-              <p className="text-sm font-bold text-slate-800">
-                {action === "in" ? "Add Stock" : "Remove Stock"}
-              </p>
+              <p className="text-sm font-bold text-slate-800">{action === "in" ? "📥 Add Stock" : "📤 Remove Stock"}</p>
               <div>
                 <Label className="text-xs text-slate-600 mb-1 block">Quantity ({product.primary_unit}) *</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={qty}
-                  onChange={(e) => { setQty(e.target.value); setQtyError(""); }}
-                  placeholder="e.g. 10"
-                  data-testid="stock-qty-input"
-                  className={cn(qtyError && "border-red-400")}
-                  autoFocus
-                />
+                <Input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setQtyError(""); }} placeholder="e.g. 10" data-testid="stock-qty-input" className={cn(qtyError && "border-red-400")} autoFocus />
                 {qtyError && <p className="text-xs text-red-500 mt-1">{qtyError}</p>}
               </div>
               <div>
                 <Label className="text-xs text-slate-600 mb-1 block">Note</Label>
-                <Input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="e.g. Supplier delivery"
-                  data-testid="stock-note-input"
-                />
+                <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={action === "in" ? "Supplier delivery, restock..." : "Walk-in sale, customer order..."} data-testid="stock-note-input" />
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleStockAction} className={cn("flex-1 text-white", action === "in" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700")} data-testid="stock-action-confirm">
@@ -492,7 +442,6 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
             </div>
           )}
 
-          {/* Unit conversions */}
           {conversions.length > 0 && (
             <div>
               <p className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
@@ -510,23 +459,19 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
             </div>
           )}
 
-          {/* Last 5 movements */}
           <div>
             <p className="text-sm font-bold text-slate-800 mb-2">Last Movements</p>
-            {movements.length === 0 ? (
+            {recentMovements.length === 0 ? (
               <p className="text-xs text-slate-400 italic">No movements recorded yet.</p>
             ) : (
               <div className="space-y-1.5">
-                {movements.map((m) => (
+                {recentMovements.map((m) => (
                   <div key={m.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2 border border-slate-100" data-testid={`slideover-movement-${m.id}`}>
                     <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "w-2 h-2 rounded-full",
-                        m.type === "in" ? "bg-green-500" : m.type === "out" ? "bg-red-500" : "bg-blue-500"
-                      )} />
-                      <span className="text-slate-700 truncate max-w-[140px]">{m.note}</span>
+                      <span className={cn("w-2 h-2 rounded-full flex-shrink-0", m.type === "in" ? "bg-green-500" : m.type === "out" ? "bg-red-500" : "bg-blue-500")} />
+                      <span className="text-slate-700 truncate max-w-[160px]">{m.note}</span>
                     </div>
-                    <span className={cn("font-bold", m.type === "in" ? "text-green-600" : m.type === "out" ? "text-red-600" : "text-blue-600")}>
+                    <span className={cn("font-bold ml-2 flex-shrink-0", m.type === "in" ? "text-green-600" : m.type === "out" ? "text-red-600" : "text-blue-600")}>
                       {m.type === "out" ? "-" : "+"}{Math.abs(m.quantity)} {m.unit}
                     </span>
                   </div>
@@ -550,10 +495,13 @@ export default function ProductsPage() {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [localProducts, setLocalProducts] = useState<Product[]>(() => {
-    const stored = JSON.parse(localStorage.getItem("hw_products") || "[]");
-    return [...initialProducts, ...stored];
-  });
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+  const [allConversions, setAllConversions] = useState<UnitConversion[]>([]);
+
+  useEffect(() => {
+    setLocalProducts(getProducts());
+    setAllConversions(getConversions());
+  }, []);
 
   function toggleSort(key: SortKey) {
     setSort((prev) =>
@@ -599,7 +547,7 @@ export default function ProductsPage() {
 
   const handleProductSaved = useCallback((p: Product) => {
     setLocalProducts((prev) => [...prev, p]);
-    setShowAddModal(false);
+    setAllConversions(getConversions());
   }, []);
 
   const handleStockUpdated = useCallback((id: string, newQty: number) => {
@@ -628,7 +576,6 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Products</h1>
@@ -644,7 +591,6 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex gap-3 items-center">
           <div className="relative flex-1">
@@ -679,8 +625,6 @@ export default function ProductsPage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
-
-          {/* Stock filter */}
           <div className="flex border border-slate-200 rounded-lg overflow-hidden">
             {stockFilterOptions.map((opt) => (
               <button
@@ -688,9 +632,7 @@ export default function ProductsPage() {
                 onClick={() => setStockFilter(opt.key)}
                 className={cn(
                   "px-3 py-1 text-xs font-medium transition-colors",
-                  stockFilter === opt.key
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-slate-600 hover:bg-slate-50"
+                  stockFilter === opt.key ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
                 )}
                 data-testid={`stock-filter-${opt.key}`}
               >
@@ -701,13 +643,9 @@ export default function ProductsPage() {
 
           <div className="w-px h-5 bg-slate-200" />
 
-          {/* Category filter */}
           <Badge
             variant="outline"
-            className={cn(
-              "px-3 py-1 cursor-pointer rounded-lg text-xs font-medium border-slate-200 transition-colors",
-              selectedCategory === null ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-slate-100 text-slate-600"
-            )}
+            className={cn("px-3 py-1 cursor-pointer rounded-lg text-xs font-medium border-slate-200 transition-colors", selectedCategory === null ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-slate-100 text-slate-600")}
             onClick={() => setSelectedCategory(null)}
             data-testid="cat-filter-all"
           >
@@ -717,10 +655,7 @@ export default function ProductsPage() {
             <Badge
               key={cat.id}
               variant="outline"
-              className={cn(
-                "px-3 py-1 cursor-pointer rounded-lg text-xs font-medium border-slate-200 transition-colors flex items-center gap-1",
-                selectedCategory === cat.id ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-slate-100 text-slate-600"
-              )}
+              className={cn("px-3 py-1 cursor-pointer rounded-lg text-xs font-medium border-slate-200 transition-colors flex items-center gap-1", selectedCategory === cat.id ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-slate-100 text-slate-600")}
               onClick={() => setSelectedCategory(cat.id)}
               data-testid={`cat-filter-${cat.id}`}
             >
@@ -730,13 +665,11 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Results count */}
       <p className="text-sm text-slate-500" data-testid="results-count">
         Showing <span className="font-semibold text-slate-800">{filteredProducts.length}</span> of{" "}
         {localProducts.length} products
       </p>
 
-      {/* List View */}
       {viewMode === "list" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -747,13 +680,10 @@ export default function ProductsPage() {
                     <th
                       key={col.key}
                       onClick={() => toggleSort(col.key)}
-                      className={cn(
-                        "px-4 py-3 font-semibold text-slate-600 cursor-pointer select-none whitespace-nowrap hover:text-slate-900 transition-colors",
-                        col.className
-                      )}
+                      className={cn("px-4 py-3 font-semibold text-slate-600 cursor-pointer select-none whitespace-nowrap hover:text-slate-900 transition-colors", col.className)}
                       data-testid={`col-header-${col.key}`}
                     >
-                      <span className="flex items-center gap-1 justify-inherit">
+                      <span className="flex items-center gap-1">
                         {col.label}
                         <SortIcon col={col.key} sort={sort} />
                       </span>
@@ -783,10 +713,7 @@ export default function ProductsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className="text-xs font-medium px-2 py-0.5 rounded"
-                          style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}
-                        >
+                        <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}>
                           {cat?.icon} {cat?.name}
                         </span>
                       </td>
@@ -822,7 +749,6 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Grid View */}
       {viewMode === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredProducts.map((product) => {
@@ -843,14 +769,9 @@ export default function ProductsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-bold text-slate-900 truncate">{product.name}</h3>
-                        <Badge variant="outline" className="text-[10px] bg-slate-50 px-1.5 py-0 whitespace-nowrap">
-                          {product.sku}
-                        </Badge>
+                        <Badge variant="outline" className="text-[10px] bg-slate-50 px-1.5 py-0 whitespace-nowrap">{product.sku}</Badge>
                       </div>
-                      <span
-                        className="text-xs font-medium px-2 py-0.5 rounded mt-1 inline-block"
-                        style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}
-                      >
+                      <span className="text-xs font-medium px-2 py-0.5 rounded mt-1 inline-block" style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}>
                         {cat?.icon} {cat?.name}
                       </span>
                       <div className="grid grid-cols-2 gap-2 text-sm mt-2">
@@ -895,6 +816,7 @@ export default function ProductsPage() {
 
       <ProductSlideover
         product={selectedProduct}
+        allConversions={allConversions}
         onClose={() => setSelectedProduct(null)}
         onStockUpdated={handleStockUpdated}
       />

@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { products, stockMovements, categories, currentUser } from "@/lib/mock-data";
+import { categories, currentUser } from "@/lib/mock-data";
+import { getProducts, getMovements, type Product, type Movement } from "@/lib/store";
 import { formatPeso, cn } from "@/lib/utils";
 
 function relativeTime(timestamp: string): string {
@@ -60,8 +61,12 @@ function SkeletonCard() {
 
 export default function DashboardPage() {
   const [loaded, setLoaded] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<Movement[]>([]);
 
   useEffect(() => {
+    setProducts(getProducts());
+    setMovements(getMovements());
     const timer = setTimeout(() => setLoaded(true), SKELETON_MS);
     return () => clearTimeout(timer);
   }, []);
@@ -72,25 +77,22 @@ export default function DashboardPage() {
       (p) => p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level
     );
     const outOfStock = products.filter((p) => p.stock_quantity === 0);
-    const todayMovements = stockMovements.filter((m) => isToday(m.timestamp));
+    const todayMovements = movements.filter((m) => isToday(m.timestamp));
     const inventoryValue = products.reduce(
       (sum, p) => sum + p.stock_quantity * p.cost_price,
       0
     );
     return { totalProducts, lowStock, outOfStock, todayMovements, inventoryValue };
-  }, []);
+  }, [products, movements]);
 
   const needsRestock = useMemo(() => {
     return [...products]
       .filter((p) => p.stock_quantity <= p.reorder_level)
       .sort((a, b) => a.stock_quantity - b.stock_quantity)
       .slice(0, 5);
-  }, []);
+  }, [products]);
 
-  const recentActivity = useMemo(
-    () => stockMovements.slice(0, 10),
-    []
-  );
+  const recentActivity = useMemo(() => movements.slice(0, 10), [movements]);
 
   const categoryValues = useMemo(() => {
     const map: Record<string, { name: string; icon: string; color: string; value: number }> = {};
@@ -105,7 +107,7 @@ export default function DashboardPage() {
     return Object.values(map)
       .filter((c) => c.value > 0)
       .sort((a, b) => b.value - a.value);
-  }, []);
+  }, [products]);
 
   const maxCatValue = categoryValues[0]?.value ?? 1;
 
@@ -214,7 +216,7 @@ export default function DashboardPage() {
             <CardContent className="p-0">
               {needsRestock.length === 0 ? (
                 <div className="p-8 text-center text-slate-500">
-                  All items are well stocked!
+                  All items are well stocked! 🎉
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -265,11 +267,7 @@ export default function DashboardPage() {
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-700",
-                              isOut
-                                ? "w-0"
-                                : pct < 50
-                                ? "bg-red-500"
-                                : "bg-amber-400"
+                              isOut ? "w-0" : pct < 50 ? "bg-red-500" : "bg-amber-400"
                             )}
                             style={{ width: `${pct}%` }}
                           />
@@ -388,10 +386,7 @@ export default function DashboardPage() {
                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: cat.color,
-                        }}
+                        style={{ width: `${pct}%`, backgroundColor: cat.color }}
                       />
                     </div>
                   </div>

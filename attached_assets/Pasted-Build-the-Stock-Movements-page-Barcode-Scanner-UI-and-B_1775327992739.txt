@@ -1,0 +1,110 @@
+Build the Stock Movements page, Barcode Scanner UI, and BIR Export page for Hardware Inventory Pro. All data from /lib/mock-data.ts and localStorage. No API calls.
+
+STOCK MOVEMENTS PAGE (/movements):
+
+Top controls:
+  - Search input (filters by product name or reference note, client-side)
+  - Type filter: pill toggle buttons — All | 📥 Stock In | 📤 Stock Out | 🔄 Adjustments (filters client-side)
+  - Date filter: "Today" | "This Week" | "This Month" | "All Time" pill buttons
+  - Right side: "＋ Record Movement" button (primary)
+  - Show count: "Showing X movements"
+
+Movement List:
+  Group by date with sticky section headers styled as muted uppercase labels: "TODAY — April 5, 2026", "YESTERDAY — April 4, 2026", etc.
+  
+  Each movement row (card style on mobile, table row on desktop):
+  - Left: colored circle icon — green with ↑ for Stock In, red with ↓ for Stock Out, blue with ↻ for Adjustment
+  - Center: product name (bold), quantity with unit in colored text (green "+200 bags", red "-50 meters", blue "±15 pieces"), reference note in muted text below
+  - Right: relative timestamp ("2h ago"), recorded by name as small avatar + name
+  - Subtle hover highlight, click to expand details (show full note, exact timestamp, movement ID)
+  
+  Pagination: Show 20 per page. "← Previous" and "Next →" buttons at bottom with page indicator "Page 1 of 2"
+  
+  States: skeleton loading shimmer (800ms), empty state "No movements recorded yet", filtered empty "No results match your filters — try adjusting"
+
+Record Movement Modal (bottom sheet on mobile, centered modal on desktop):
+  Step 1 — Select Product:
+    Searchable dropdown showing all products. Each option shows: emoji + name + current stock + unit
+    OR type/paste a barcode number → auto-selects matching product
+    Selected product shows as a card: name, current stock, category, unit
+  
+  Step 2 — Movement Details:
+    Movement type: segmented control — 📥 Stock In | 📤 Stock Out | 🔄 Adjustment
+    Quantity: large numeric input with + / - stepper buttons
+    Unit selector: dropdown showing primary unit AND all converted units for that product
+    When selecting a converted unit, show real-time conversion preview below:
+      Example: user selects "roll" and enters 2 → shows "= 300 meters" with a conversion arrow animation
+    Reference note: text input with placeholder suggestions ("Supplier delivery", "Walk-in sale", "Breakage", "Recount adjustment")
+  
+  Step 3 — Confirm:
+    Summary card with all details: product name, movement type with colored badge, quantity with unit, converted equivalent, note, "Recorded by: RJ"
+    Large "Confirm" button and "← Back" text link
+    Validation: Stock Out cannot exceed current stock (show inline error with current stock)
+  
+  On confirm: add movement to localStorage, update product stock quantity, show success toast, close modal, animate new movement into list at top
+
+BARCODE SCANNER PAGE (/scan):
+  Since this is UI-only, simulate the scanner experience:
+  
+  Full-screen dark overlay with a camera viewfinder rectangle (animated scanning line moving up and down)
+  Header: "📷 Scan Barcode" with close X button → navigates back
+  Viewfinder: rounded rectangle with animated corner brackets and a green scanning line
+  Below viewfinder: "Position barcode within the frame"
+  
+  "Simulate Scan" button at bottom (for demo purposes) — on click:
+    - Show a brief scanning animation
+    - Display a random product from mock data in a result card that slides up:
+      - Product emoji, name, SKU, barcode number
+      - Current stock: "145 bags" with status badge
+      - Price: "₱265.00 / bag"
+      - 3 action buttons: "📥 Stock In" | "📤 Stock Out" | "📋 Details"
+      - Stock In / Stock Out opens the Record Movement modal pre-filled with this product
+      - Details navigates to product detail
+    - "Scan Again" button to reset
+  
+  Manual entry fallback: text input below viewfinder — "Or enter barcode manually" with search icon. On submit, look up product by barcode from mock data. If not found: "Product not found" state with "Register New Product →" button leading to Add Product modal with barcode pre-filled.
+
+BIR INVENTORY LIST EXPORT (/more/bir-export):
+  Title: "📋 BIR Inventory List Generator"
+  Subtitle: "Generate your annual inventory list per Revenue Memorandum Circular No. 8-2023"
+  Info banner (blue tint): "Required: All businesses must submit an inventory list to BIR every January. This tool generates the format per Annex A."
+  
+  Form fields:
+  - "Inventory as of" — date picker, defaults to December 31 of current year
+  - "Store / Branch" — dropdown from mock stores
+  - "TIN" — text input with placeholder "XXX-XXX-XXX-XXX"
+  - "Business Name" — pre-filled from mock store
+  
+  Preview section:
+  - Title: "Preview — X items"
+  - Table with columns: Item No. | Description | Unit | Quantity | Unit Cost (₱) | Total Cost (₱)
+  - Populated from mock products (active, stock > 0)
+  - Each row shows formatted peso amounts
+  - Footer row: "TOTAL INVENTORY VALUE" in bold with grand total in ₱
+  - Table is horizontally scrollable on mobile
+  
+  Action buttons:
+  - "📥 Download CSV" (primary) — generates and downloads a CSV file from the preview table data
+  - "📄 Download PDF" (secondary/outline) — show toast "PDF generation coming soon" (placeholder)
+  
+  The CSV should actually download a real .csv file using client-side Blob/URL.createObjectURL with columns: Item No, Description, Unit, Quantity, Unit Cost, Total Cost
+
+MORE PAGE (/more):
+  Clean menu list with dividers between groups:
+  
+  Group "Store":
+  - 🏪 Store Settings → placeholder page with store info displayed as a form (non-functional save)
+  - 📦 Suppliers Directory → simple list of mock suppliers, each row shows name, contact, phone. Tap to expand and see email. "+ Add Supplier" button opens a form modal (saves to localStorage)
+  
+  Group "Reports":
+  - 📋 BIR Export → links to /more/bir-export
+  - 🔄 Unit Conversions → read-only reference table: Product | From | To | Factor. Shows all defined conversions in a clean table
+  
+  Group "Account":
+  - 👤 Profile → show user card with mock user info
+  - 🌐 Language → toggle switch "Filipino / Tagalog" (cosmetic only, show a toast "Language setting saved")
+  - ❓ Help & Support → placeholder with support email and FAQ accordion (3 dummy FAQs)
+  - ℹ️ About → "Hardware Inventory Pro v1.0.0 MVP", "Built for Filipino Hardware Stores 🇵🇭"
+  
+  Bottom:
+  - "🚪 Log Out" button (danger red outline) → clears localStorage login flag, redirects to /login

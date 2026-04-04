@@ -7,9 +7,11 @@ import DashboardPage from "@/pages/dashboard";
 import ProductsPage from "@/pages/products";
 import ProductDetailPage from "@/pages/product-detail";
 import MovementsPage from "@/pages/movements";
-import NewMovementPage from "@/pages/new-movement";
 import SuppliersPage from "@/pages/suppliers";
 import SettingsPage from "@/pages/settings";
+import ScanPage from "@/pages/scan";
+import MorePage from "@/pages/more";
+import BirExportPage from "@/pages/bir-export";
 import AppLayout from "@/components/layout/app-layout";
 import AuthGuard from "@/components/layout/auth-guard";
 
@@ -21,18 +23,24 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route>
         <AuthGuard>
-          <AppLayout>
-            <Switch>
-              <Route path="/" component={DashboardPage} />
-              <Route path="/dashboard" component={DashboardPage} />
-              <Route path="/products/:id" component={ProductDetailPage} />
-              <Route path="/products" component={ProductsPage} />
-              <Route path="/movements/new" component={NewMovementPage} />
-              <Route path="/movements" component={MovementsPage} />
-              <Route path="/suppliers" component={SuppliersPage} />
-              <Route path="/settings" component={SettingsPage} />
-            </Switch>
-          </AppLayout>
+          <Switch>
+            <Route path="/scan" component={ScanPage} />
+            <Route>
+              <AppLayout>
+                <Switch>
+                  <Route path="/" component={DashboardPage} />
+                  <Route path="/dashboard" component={DashboardPage} />
+                  <Route path="/products/:id" component={ProductDetailPage} />
+                  <Route path="/products" component={ProductsPage} />
+                  <Route path="/movements" component={MovementsPage} />
+                  <Route path="/more/bir-export" component={BirExportPage} />
+                  <Route path="/more" component={MorePage} />
+                  <Route path="/suppliers" component={SuppliersPage} />
+                  <Route path="/settings" component={SettingsPage} />
+                </Switch>
+              </AppLayout>
+            </Route>
+          </Switch>
         </AuthGuard>
       </Route>
     </Switch>
