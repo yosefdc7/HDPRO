@@ -1,20 +1,14 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [, setLocation] = useLocation();
-  const [isChecking, setIsChecking] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("hw_logged_in") === "true";
-    if (!isLoggedIn) {
-      setLocation("/login");
-    } else {
-      setIsChecking(false);
-    }
-  }, [setLocation]);
+    localStorage.setItem("hw_logged_in", "true");
+    setReady(true);
+  }, []);
 
-  if (isChecking) return null;
+  if (!ready) return null;
 
   return <>{children}</>;
 }
