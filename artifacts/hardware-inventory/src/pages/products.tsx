@@ -44,7 +44,7 @@ import {
 import { formatPeso, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
-type ColKey = "name" | "category" | "stock_quantity" | "primary_unit" | "cost_price" | "selling_price";
+type ColKey = "name" | "category" | "stock_quantity" | "primary_unit" | "cost_price" | "selling_price" | "status";
 type SortDir = "asc" | "desc";
 type ViewMode = "list" | "grid";
 
@@ -68,13 +68,14 @@ function getColumnDisplayValue(col: ColKey, p: Product): string {
       const cat = categories.find((c) => c.id === p.category_id);
       return cat ? `${cat.icon} ${cat.name}` : "Unknown";
     }
-    case "stock_quantity": {
-      const s = getStockStatus(p);
-      return s === "out" ? "Out of Stock" : s === "low" ? "Low Stock" : "In Stock";
-    }
+    case "stock_quantity": return String(p.stock_quantity);
     case "primary_unit": return p.primary_unit;
     case "cost_price": return formatPeso(p.cost_price);
     case "selling_price": return formatPeso(p.selling_price);
+    case "status": {
+      const s = getStockStatus(p);
+      return s === "out" ? "Out of Stock" : s === "low" ? "Low Stock" : "In Stock";
+    }
   }
 }
 
@@ -89,6 +90,10 @@ function getSortValue(col: ColKey, p: Product): string | number {
     case "primary_unit": return p.primary_unit.toLowerCase();
     case "cost_price": return p.cost_price;
     case "selling_price": return p.selling_price;
+    case "status": {
+      const s = getStockStatus(p);
+      return s === "ok" ? 0 : s === "low" ? 1 : 2;
+    }
   }
 }
 
@@ -96,9 +101,12 @@ function getUniqueValues(col: ColKey, products: Product[]): string[] {
   const set = new Set<string>();
   products.forEach((p) => set.add(getColumnDisplayValue(col, p)));
   const arr = Array.from(set);
-  if (col === "stock_quantity") {
+  if (col === "status") {
     const order = ["In Stock", "Low Stock", "Out of Stock"];
     return order.filter((v) => arr.includes(v));
+  }
+  if (col === "stock_quantity") {
+    return arr.sort((a, b) => Number(a) - Number(b));
   }
   return arr.sort((a, b) => a.localeCompare(b));
 }
@@ -159,7 +167,11 @@ function ExcelColumnHeader({
   function onOpenChange(v: boolean) {
     if (v) {
       setLocalSort(filter?.sort ?? null);
-      setLocalSelected(new Set(filter?.selectedValues ?? []));
+      if (!filter || filter.selectedValues.size === 0) {
+        setLocalSelected(new Set(allValues));
+      } else {
+        setLocalSelected(new Set(filter.selectedValues));
+      }
       setSearchVal("");
     }
     setOpen(v);
@@ -193,7 +205,7 @@ function ExcelColumnHeader({
 
   function handleOK() {
     const effectiveSelected =
-      localSelected.size === allValues.length ? new Set<string>() : localSelected;
+      localSelected.size >= allValues.length ? new Set<string>() : localSelected;
     onApply(col, localSort, effectiveSelected);
     setOpen(false);
   }
@@ -225,7 +237,7 @@ function ExcelColumnHeader({
             data-testid={`col-filter-btn-${col}`}
           >
             <span className={cn("flex items-center gap-1", align === "right" && "flex-row-reverse")}>
-              {label}
+              <span className={cn(active && "underline underline-offset-2")}>{label}</span>
               {sorted && filter?.sort === "asc" && <SortAsc className="h-3 w-3 text-blue-600 flex-shrink-0" />}
               {sorted && filter?.sort === "desc" && <SortDesc className="h-3 w-3 text-blue-600 flex-shrink-0" />}
             </span>
@@ -780,6 +792,7 @@ const ALL_COLS: { key: ColKey; label: string; align?: "left" | "right" }[] = [
   { key: "primary_unit", label: "Unit" },
   { key: "cost_price", label: "Cost", align: "right" },
   { key: "selling_price", label: "Price", align: "right" },
+  { key: "status", label: "Status", align: "right" },
 ];
 
 export default function ProductsPage() {
@@ -983,9 +996,6 @@ export default function ProductsPage() {
                       className={col.align === "right" ? "text-right" : "text-left"}
                     />
                   ))}
-                  <th className="bg-slate-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
-                    Status
-                  </th>
                 </tr>
               </thead>
               <tbody>
