@@ -114,8 +114,9 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
       return;
     }
     const cat = categories.find((c) => c.id === categoryId)!;
+    const productId = `p-${Date.now()}`;
     const newProduct: Product = {
-      id: `p-${Date.now()}`,
+      id: productId,
       category_id: categoryId,
       name: name.trim(),
       sku: sku.trim(),
@@ -128,10 +129,29 @@ function AddProductModal({ open, onClose, onSave }: AddProductModalProps) {
       is_active: true,
       image_placeholder: cat.icon,
     };
-    // Save to localStorage
+    // Save product to localStorage
     const stored = JSON.parse(localStorage.getItem("hw_products") || "[]");
     stored.push(newProduct);
     localStorage.setItem("hw_products", JSON.stringify(stored));
+    
+    // Save unit conversions to localStorage if any
+    if (conversions.length > 0) {
+      const validConversions = conversions.filter(c => c.from_unit.trim() && c.factor.trim() && !isNaN(Number(c.factor)));
+      if (validConversions.length > 0) {
+        const storedConv = JSON.parse(localStorage.getItem("hw_unit_conversions") || "[]");
+        validConversions.forEach((c) => {
+          storedConv.push({
+            id: c.id,
+            product_id: productId,
+            from_unit: c.from_unit,
+            to_unit: c.to_unit,
+            factor: Number(c.factor),
+          });
+        });
+        localStorage.setItem("hw_unit_conversions", JSON.stringify(storedConv));
+      }
+    }
+    
     onSave(newProduct);
     toast({ title: "Product added!", description: `${newProduct.name} has been added to your inventory.` });
     handleClose();
@@ -303,9 +323,19 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
       by: currentUser.name.split(" ")[0],
       timestamp: new Date().toISOString(),
     };
+    // Save movement to localStorage
     const stored = JSON.parse(localStorage.getItem("hw_movements") || "[]");
     stored.unshift(movement);
     localStorage.setItem("hw_movements", JSON.stringify(stored));
+    
+    // Update product stock in localStorage
+    const products = JSON.parse(localStorage.getItem("hw_products") || "[]");
+    const prodIndex = products.findIndex((p: Product) => p.id === product.id);
+    if (prodIndex >= 0) {
+      products[prodIndex].stock_quantity = newQty;
+      localStorage.setItem("hw_products", JSON.stringify(products));
+    }
+    
     onStockUpdated(product.id, newQty);
     toast({
       title: action === "in" ? "Stock added!" : "Stock removed!",
@@ -327,8 +357,14 @@ function ProductSlideover({ product, onClose, onStockUpdated }: SlideoverProps) 
   if (!product) return null;
 
   const category = categories.find((c) => c.id === product.category_id);
-  const conversions = unitConversions.filter((uc) => uc.product_id === product.id);
-  const movements = stockMovements.filter((m) => m.product_id === product.id).slice(0, 5);
+  const storedConversions = JSON.parse(localStorage.getItem("hw_unit_conversions") || "[]");
+  const allConversions = [...unitConversions, ...storedConversions];
+  const conversions = allConversions.filter((uc) => uc.product_id === product.id);
+  
+  const storedMovements = JSON.parse(localStorage.getItem("hw_movements") || "[]");
+  const allMovements = [...storedMovements, ...stockMovements];
+  const movements = allMovements.filter((m) => m.product_id === product.id).slice(0, 5);
+  
   const isOut = product.stock_quantity === 0;
   const isLow = product.stock_quantity > 0 && product.stock_quantity <= product.reorder_level;
   const markup = product.cost_price > 0
