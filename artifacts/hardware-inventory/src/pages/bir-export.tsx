@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Download, FileText, Info } from "lucide-react";
+import { ArrowLeft, Download, FileText, Info, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getProducts } from "@/lib/store";
 import { stores } from "@/lib/mock-data";
 import { formatPeso } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useOffline } from "@/lib/offline-context";
 
 function getCurrentYearEnd(): string {
   const year = new Date().getFullYear();
@@ -16,6 +18,7 @@ function getCurrentYearEnd(): string {
 }
 
 export default function BirExportPage() {
+  const { isOffline } = useOffline();
   const [inventoryDate, setInventoryDate] = useState(getCurrentYearEnd());
   const [storeId, setStoreId] = useState(stores[0].id);
   const [tin, setTin] = useState("");
@@ -149,10 +152,27 @@ export default function BirExportPage() {
               />
             </div>
 
+            {isOffline && (
+              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+                <WifiOff className="h-4 w-4 flex-shrink-0" />
+                <span>Export is unavailable while offline. Data is saved locally.</span>
+              </div>
+            )}
             <div className="flex flex-col gap-2 pt-2">
-              <Button onClick={downloadCSV} className="bg-blue-700 hover:bg-blue-800 text-white gap-2 w-full" data-testid="download-csv">
-                <Download className="h-4 w-4" /> Download CSV
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full">
+                    <Button
+                      onClick={isOffline ? () => toast({ title: "Unavailable offline", description: "Connect to the internet to download your BIR export.", variant: "destructive" }) : downloadCSV}
+                      className={`bg-blue-700 hover:bg-blue-800 text-white gap-2 w-full ${isOffline ? "opacity-60" : ""}`}
+                      data-testid="download-csv"
+                    >
+                      {isOffline ? <WifiOff className="h-4 w-4" /> : <Download className="h-4 w-4" />} Download CSV
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {isOffline && <TooltipContent>Connect to internet to download</TooltipContent>}
+              </Tooltip>
               <Button onClick={downloadPDF} variant="outline" className="gap-2 w-full" data-testid="download-pdf">
                 <FileText className="h-4 w-4" /> Download PDF
               </Button>

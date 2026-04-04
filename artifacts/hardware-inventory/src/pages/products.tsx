@@ -1149,6 +1149,16 @@ export default function ProductsPage() {
         onClose={() => setSelectedProduct(null)}
         onStockUpdated={handleStockUpdated}
       />
+
+      {/* Mobile FAB */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 bg-blue-700 hover:bg-blue-800 active:scale-95 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200"
+        data-testid="fab-add-product"
+        aria-label="Add Product"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   );
 }

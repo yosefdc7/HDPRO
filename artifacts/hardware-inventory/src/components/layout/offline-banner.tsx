@@ -1,53 +1,56 @@
-import { useState, useEffect } from "react";
-import { WifiOff, Wifi } from "lucide-react";
+import { useEffect, useState } from "react";
+import { WifiOff, Wifi, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOffline } from "@/lib/offline-context";
 
 export default function OfflineBanner() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showRestored, setShowRestored] = useState(false);
+  const { isOffline, isSyncing } = useOffline();
+  const [prevOffline, setPrevOffline] = useState(isOffline);
+  const [showSynced, setShowSynced] = useState(false);
 
   useEffect(() => {
-    function handleOffline() {
-      setIsOnline(false);
-      setShowRestored(false);
+    if (prevOffline && !isOffline) {
+      if (!isSyncing) {
+        setShowSynced(true);
+        const t = setTimeout(() => setShowSynced(false), 3000);
+        return () => clearTimeout(t);
+      }
     }
-    function handleOnline() {
-      setIsOnline(true);
-      setShowRestored(true);
-      const timer = setTimeout(() => setShowRestored(false), 3000);
-      return () => clearTimeout(timer);
-    }
-    window.addEventListener("offline", handleOffline);
-    window.addEventListener("online", handleOnline);
-    return () => {
-      window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("online", handleOnline);
-    };
-  }, []);
+    setPrevOffline(isOffline);
+  }, [isOffline, isSyncing, prevOffline]);
 
-  if (isOnline && !showRestored) return null;
+  if (!isOffline && !isSyncing && !showSynced) return null;
 
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-4 py-2 text-sm font-medium text-center justify-center transition-all duration-300",
-        !isOnline
+        "flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-300",
+        isOffline
           ? "bg-amber-500 text-white"
+          : isSyncing
+          ? "bg-blue-600 text-white"
           : "bg-green-500 text-white"
       )}
       data-testid="offline-banner"
       role="status"
       aria-live="polite"
     >
-      {!isOnline ? (
+      {isOffline && (
         <>
           <WifiOff className="h-4 w-4 flex-shrink-0" />
           <span>You're offline — all data is saved locally</span>
         </>
-      ) : (
+      )}
+      {isSyncing && (
+        <>
+          <RefreshCw className="h-4 w-4 flex-shrink-0 animate-spin" />
+          <span>Syncing your data...</span>
+        </>
+      )}
+      {!isOffline && !isSyncing && showSynced && (
         <>
           <Wifi className="h-4 w-4 flex-shrink-0" />
-          <span>Back online!</span>
+          <span>Back online — all data synced!</span>
         </>
       )}
     </div>

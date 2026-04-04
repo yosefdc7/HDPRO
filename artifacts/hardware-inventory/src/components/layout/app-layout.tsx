@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import OfflineBanner from "@/components/layout/offline-banner";
 import PwaInstallPrompt from "@/components/layout/pwa-install-prompt";
+import { useOffline } from "@/lib/offline-context";
 
 const mainNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -47,6 +48,25 @@ const allNavItems = [
   { icon: Users, label: "Suppliers", href: "/suppliers" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
+
+function StatusDot() {
+  const { isOffline, isSyncing } = useOffline();
+  return (
+    <div
+      className={cn(
+        "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-500",
+        isOffline
+          ? "bg-amber-400"
+          : isSyncing
+          ? "bg-yellow-400 animate-pulse"
+          : "bg-green-400"
+      )}
+      title={isOffline ? "Offline" : isSyncing ? "Syncing..." : "Online"}
+      data-testid="status-dot"
+      aria-label={isOffline ? "Offline mode" : isSyncing ? "Syncing" : "Online"}
+    />
+  );
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -125,6 +145,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-bold text-slate-900 truncate">{currentUser.name}</span>
             <span className="text-xs text-slate-500 truncate">{currentStore.branch_name}</span>
           </div>
+          <StatusDot />
         </div>
         <Button
           variant="ghost"
@@ -147,8 +168,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       <div className="flex-1 md:pl-64 flex flex-col min-h-[100dvh]">
-        {/* PWA & Offline Banners */}
-        <PwaInstallPrompt />
+        {/* Offline Banner (top sticky) */}
         <OfflineBanner />
 
         {/* Mobile/Desktop Header */}
@@ -171,10 +191,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
 
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center gap-3">
             <span className="font-semibold text-slate-900 text-xl">
               {getPageTitle()}
             </span>
+            <StatusDot />
           </div>
 
           <div className="flex items-center gap-4">
@@ -204,7 +225,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="md:hidden flex items-center">
+            <div className="md:hidden flex items-center gap-2">
+              <StatusDot />
               <Avatar className="h-8 w-8 border border-slate-200 bg-white">
                 <AvatarFallback className="bg-blue-100 text-blue-700 text-xs font-bold">
                   {currentUser.avatar_initials}
@@ -243,6 +265,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </div>
+
+        {/* PWA Install Prompt (bottom) */}
+        <PwaInstallPrompt />
       </div>
     </div>
   );

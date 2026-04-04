@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -47,32 +46,33 @@ export default function PwaInstallPrompt() {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 bg-blue-700 text-white"
+      className="fixed bottom-16 md:bottom-0 inset-x-0 z-50 flex items-center gap-3 px-4 py-3 bg-blue-700 text-white shadow-lg"
       data-testid="pwa-install-prompt"
+      role="complementary"
+      aria-label="Install app prompt"
     >
-      <span className="text-xl flex-shrink-0">🔧</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold leading-tight">Install Hardware Inventory Pro</p>
-        <p className="text-xs text-blue-200 mt-0.5">Add to home screen for quick access</p>
-      </div>
+      <span className="text-lg flex-shrink-0">📱</span>
+      <p className="flex-1 text-sm font-medium leading-snug">
+        Add to Home Screen for the best experience
+      </p>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           size="sm"
           onClick={handleInstall}
-          className="bg-white text-blue-700 hover:bg-blue-50 text-xs h-8 gap-1"
+          className="bg-white text-blue-700 hover:bg-blue-50 text-xs h-8 font-semibold px-3"
           data-testid="pwa-install-btn"
         >
-          <Download className="h-3.5 w-3.5" />
           Install
         </Button>
-        <button
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={handleDismiss}
-          className="text-blue-200 hover:text-white p-1 rounded"
-          aria-label="Dismiss"
+          className="text-blue-100 hover:text-white hover:bg-blue-600 text-xs h-8 px-3"
           data-testid="pwa-dismiss-btn"
         >
-          <X className="h-4 w-4" />
-        </button>
+          Maybe Later
+        </Button>
       </div>
     </div>
   );

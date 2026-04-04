@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useOffline } from "@/lib/offline-context";
 import {
   Store,
   Users,
@@ -329,6 +330,7 @@ export default function MorePage() {
   const [, navigate] = useLocation();
   const [subView, setSubView] = useState<SubView>(null);
   const [langToggle, setLangToggle] = useState(false);
+  const { simulateOffline, setSimulateOffline } = useOffline();
 
   function handleLogout() {
     localStorage.removeItem("hw_logged_in");
@@ -420,6 +422,36 @@ export default function MorePage() {
           },
           { icon: "❓", label: "Help & Support", onClick: () => setSubView("help") },
           { icon: "ℹ️", label: "About", sublabel: "Hardware Inventory Pro v1.0.0", onClick: () => setSubView("about") },
+        ]}
+      />
+
+      <MenuGroup
+        title="Developer Tools"
+        items={[
+          {
+            icon: "📡",
+            label: "Simulate Offline Mode",
+            sublabel: simulateOffline ? "Currently: Offline" : "Currently: Online",
+            onClick: () => {
+              const next = !simulateOffline;
+              setSimulateOffline(next);
+              toast({
+                title: next ? "Offline mode enabled" : "Offline mode disabled",
+                description: next
+                  ? "The app is now simulating offline behavior."
+                  : "Reconnected — data is syncing.",
+                variant: next ? "destructive" : "success",
+              });
+            },
+            rightEl: (
+              <div
+                className={cn("w-10 h-6 rounded-full transition-colors relative flex-shrink-0", simulateOffline ? "bg-amber-500" : "bg-slate-200")}
+                data-testid="simulate-offline-toggle"
+              >
+                <div className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform", simulateOffline ? "translate-x-4 left-0.5" : "left-0.5")} />
+              </div>
+            ),
+          },
         ]}
       />
 

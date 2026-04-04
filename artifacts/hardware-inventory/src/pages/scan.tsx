@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { X, Search, Camera } from "lucide-react";
+import { X, Search, Camera, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useOffline } from "@/lib/offline-context";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 function StockActionModal({
   open,
@@ -147,6 +149,7 @@ function ProductResultCard({
 
 export default function ScanPage() {
   const [, navigate] = useLocation();
+  const { isOffline } = useOffline();
   const [scanning, setScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
   const [manualBarcode, setManualBarcode] = useState("");
@@ -278,14 +281,28 @@ export default function ScanPage() {
 
         {/* Simulate button */}
         {!scannedProduct && (
-          <Button
-            onClick={simulateScan}
-            disabled={scanning}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-base"
-            data-testid="simulate-scan-btn"
-          >
-            {scanning ? "Scanning..." : "📷 Simulate Scan"}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  onClick={isOffline
+                    ? () => toast({ title: "Unavailable offline", description: "Camera scanning requires an internet connection.", variant: "destructive" })
+                    : simulateScan}
+                  disabled={scanning}
+                  className={cn(
+                    "text-white px-8 py-3 rounded-xl text-base transition-all",
+                    isOffline
+                      ? "bg-slate-500 hover:bg-slate-600 opacity-75"
+                      : "bg-green-600 hover:bg-green-700"
+                  )}
+                  data-testid="simulate-scan-btn"
+                >
+                  {scanning ? "Scanning..." : isOffline ? <><WifiOff className="h-4 w-4 inline mr-2" />Offline</> : "📷 Simulate Scan"}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {isOffline && <TooltipContent side="top">Connect to internet to use camera</TooltipContent>}
+          </Tooltip>
         )}
       </div>
 

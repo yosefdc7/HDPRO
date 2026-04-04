@@ -11,6 +11,7 @@ import {
   PackageSearch,
   Minus,
 } from "lucide-react";
+import { useOffline } from "@/lib/offline-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,6 +117,7 @@ interface RecordMovementModalProps {
 }
 
 function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: RecordMovementModalProps) {
+  const { isOffline } = useOffline();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [products, setProducts] = useState<Product[]>([]);
   const [conversions, setConversions] = useState<UnitConversion[]>([]);
@@ -233,7 +235,11 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
 
     addMovementAndUpdateStock(movement);
     onRecorded(movement);
-    toast({ title: "Movement recorded!", description: `${movement.quantity} ${movement.unit} ${movementType === "in" ? "added to" : movementType === "out" ? "removed from" : "adjusted for"} ${selectedProduct.name}.`, variant: "success" });
+    if (isOffline) {
+      toast({ title: "Saved locally!", description: "Movement saved to your device. It will sync when you're back online.", variant: "success" });
+    } else {
+      toast({ title: "Movement recorded!", description: `${movement.quantity} ${movement.unit} ${movementType === "in" ? "added to" : movementType === "out" ? "removed from" : "adjusted for"} ${selectedProduct.name}.`, variant: "success" });
+    }
     onClose();
   }
 
@@ -707,6 +713,16 @@ export default function MovementsPage() {
         onClose={() => setShowModal(false)}
         onRecorded={handleMovementRecorded}
       />
+
+      {/* Mobile FAB */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 bg-blue-700 hover:bg-blue-800 active:scale-95 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200"
+        data-testid="fab-record-movement"
+        aria-label="Record Movement"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   );
 }

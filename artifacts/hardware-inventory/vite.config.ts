@@ -43,9 +43,9 @@ export default defineConfig({
         theme_color: "#1d4ed8",
         background_color: "#f8fafc",
         display: "standalone",
-        orientation: "portrait",
+        orientation: "portrait-primary",
         scope: basePath,
-        start_url: basePath,
+        start_url: `${basePath}dashboard`,
         icons: [
           {
             src: "pwa-192x192.svg",
