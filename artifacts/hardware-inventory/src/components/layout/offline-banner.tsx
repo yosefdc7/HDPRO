@@ -12,7 +12,7 @@ export default function OfflineBanner() {
     if (prevOffline && !isOffline) {
       if (!isSyncing) {
         setShowSynced(true);
-        const t = setTimeout(() => setShowSynced(false), 3000);
+        const t = setTimeout(() => setShowSynced(false), 2000);
         return () => clearTimeout(t);
       }
     }

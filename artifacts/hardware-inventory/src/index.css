@@ -354,4 +354,28 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* ─── Mobile UX improvements ──────────────────────────────────────────── */
+  /* Global button micro-interactions */
+  button, [role="button"], a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button:active:not([disabled]) {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+
+  /* Ensure inputs use 16px minimum on mobile to prevent iOS auto-zoom */
+  @media (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Safe-area bottom tab padding support */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

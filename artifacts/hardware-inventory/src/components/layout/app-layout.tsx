@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import OfflineBanner from "@/components/layout/offline-banner";
 import PwaInstallPrompt from "@/components/layout/pwa-install-prompt";
+import PullToRefresh from "@/components/layout/pull-to-refresh";
 import { useOffline } from "@/lib/offline-context";
 
 const mainNavItems = [
@@ -56,10 +57,10 @@ function StatusDot() {
       className={cn(
         "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-500",
         isOffline
-          ? "bg-amber-400"
+          ? "bg-gray-400"
           : isSyncing
-          ? "bg-yellow-400 animate-pulse"
-          : "bg-green-400"
+          ? "bg-yellow-400 animate-[pulse_0.6s_ease-in-out_infinite]"
+          : "bg-green-400 animate-pulse"
       )}
       title={isOffline ? "Offline" : isSyncing ? "Syncing..." : "Online"}
       data-testid="status-dot"
@@ -235,6 +236,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
+
+        {/* Pull to refresh (mobile only) */}
+        <PullToRefresh />
 
         {/* Page Content */}
         <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full">

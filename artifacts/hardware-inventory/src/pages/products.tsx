@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useOffline } from "@/lib/offline-context";
 import { categories, currentUser } from "@/lib/mock-data";
 import {
   getProducts,
@@ -368,6 +369,7 @@ interface AddProductModalProps {
 }
 
 function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProductModalProps) {
+  const { isOffline } = useOffline();
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [barcode, setBarcode] = useState(initialBarcode);
@@ -452,7 +454,11 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
 
     addProduct(newProduct, validConversions);
     onSave(newProduct);
-    toast({ title: "Product added!", description: `${newProduct.name} has been added.`, variant: "success" });
+    if (isOffline) {
+      toast({ title: "Saved locally!", description: `${newProduct.name} saved to your device. Will sync when back online.`, variant: "success" });
+    } else {
+      toast({ title: "Product added!", description: `${newProduct.name} has been added.`, variant: "success" });
+    }
     handleClose();
   }
 
@@ -593,6 +599,7 @@ interface SlideoverProps {
 }
 
 function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: SlideoverProps) {
+  const { isOffline } = useOffline();
   const [action, setAction] = useState<"in" | "out" | null>(null);
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
@@ -636,11 +643,15 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
     const updatedMovements = getMovements();
     setRecentMovements(updatedMovements.filter((m) => m.product_id === product.id).slice(0, 5));
 
-    toast({
-      title: action === "in" ? "Stock added!" : "Stock removed!",
-      description: `${n} ${product.primary_unit} ${action === "in" ? "added to" : "removed from"} ${product.name}.`,
-      variant: "success",
-    });
+    if (isOffline) {
+      toast({ title: "Saved locally!", description: `Stock update saved to your device. Will sync when back online.`, variant: "success" });
+    } else {
+      toast({
+        title: action === "in" ? "Stock added!" : "Stock removed!",
+        description: `${n} ${product.primary_unit} ${action === "in" ? "added to" : "removed from"} ${product.name}.`,
+        variant: "success",
+      });
+    }
     setAction(null);
     setQty("");
     setNote("");
@@ -1150,15 +1161,17 @@ export default function ProductsPage() {
         onStockUpdated={handleStockUpdated}
       />
 
-      {/* Mobile FAB */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 bg-blue-700 hover:bg-blue-800 active:scale-95 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200"
-        data-testid="fab-add-product"
-        aria-label="Add Product"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {/* Mobile FAB — hidden when add modal or slideover is open */}
+      {!showAddModal && !selectedProduct && (
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 bg-blue-700 hover:bg-blue-800 active:scale-95 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200"
+          data-testid="fab-add-product"
+          aria-label="Add Product"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
     </div>
   );
 }

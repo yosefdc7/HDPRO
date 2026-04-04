@@ -33,8 +33,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           setIsSyncing(false);
           setWasSynced(true);
-          setTimeout(() => setWasSynced(false), 3000);
-        }, 1500);
+          setTimeout(() => setWasSynced(false), 2000);
+        }, 2000);
       }
     }
     window.addEventListener("offline", onOffline);
@@ -53,8 +53,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       setTimeout(() => {
         setIsSyncing(false);
         setWasSynced(true);
-        setTimeout(() => setWasSynced(false), 3000);
-      }, 1500);
+        setTimeout(() => setWasSynced(false), 2000);
+      }, 2000);
     }
   }, [networkOnline]);
 

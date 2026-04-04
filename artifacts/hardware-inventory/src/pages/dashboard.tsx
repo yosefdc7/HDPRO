@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "wouter";
 import {
   Package,
@@ -43,6 +43,25 @@ function isToday(timestamp: string): boolean {
 
 const SKELETON_MS = 800;
 
+function useCountUp(target: number, duration = 600, enabled = false) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const start = performance.now();
+    function tick(now: number) {
+      const elapsed = now - start;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(eased * target));
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [target, duration, enabled]);
+  return enabled ? value : target;
+}
+
 function SkeletonCard() {
   return (
     <Card className="rounded-xl shadow-sm border-slate-100">
@@ -57,6 +76,11 @@ function SkeletonCard() {
       </CardContent>
     </Card>
   );
+}
+
+function StatValue({ value, loaded }: { value: number; loaded: boolean }) {
+  const displayed = useCountUp(value, 700, loaded);
+  return <>{displayed}</>;
 }
 
 export default function DashboardPage() {
@@ -116,7 +140,7 @@ export default function DashboardPage() {
   const statCards = [
     {
       label: "Total Products",
-      value: stats.totalProducts,
+      numericValue: stats.totalProducts,
       icon: <Package className="h-6 w-6" />,
       iconBg: "bg-blue-50 text-blue-600",
       valueColor: "text-slate-900",
@@ -124,7 +148,7 @@ export default function DashboardPage() {
     },
     {
       label: "Low Stock Items",
-      value: alertCount,
+      numericValue: alertCount,
       icon: <AlertTriangle className="h-6 w-6" />,
       iconBg: "bg-red-50 text-red-600",
       valueColor: alertCount > 0 ? "text-red-600" : "text-green-600",
@@ -132,7 +156,7 @@ export default function DashboardPage() {
     },
     {
       label: "Today's Movements",
-      value: stats.todayMovements.length,
+      numericValue: stats.todayMovements.length,
       icon: <ArrowDownUp className="h-6 w-6" />,
       iconBg: "bg-emerald-50 text-emerald-600",
       valueColor: "text-slate-900",
@@ -140,7 +164,8 @@ export default function DashboardPage() {
     },
     {
       label: "Inventory Value",
-      value: formatPeso(stats.inventoryValue),
+      numericValue: stats.inventoryValue,
+      formattedValue: formatPeso(stats.inventoryValue),
       icon: <PhilippinePeso className="h-6 w-6" />,
       iconBg: "bg-violet-50 text-violet-600",
       valueColor: "text-slate-900",
@@ -210,12 +235,14 @@ export default function DashboardPage() {
                       </p>
                       <p
                         className={cn(
-                          "font-bold",
+                          "font-bold tabular-nums",
                           card.isLarge ? "text-xl" : "text-3xl",
                           card.valueColor
                         )}
                       >
-                        {card.value}
+                        {card.isLarge && card.formattedValue
+                          ? card.formattedValue
+                          : <StatValue value={card.numericValue} loaded={loaded} />}
                       </p>
                       {card.badge && (
                         <p className={cn("text-xs mt-1 font-medium", alertCount > 0 && i === 1 ? "text-red-500" : "text-green-600")}>
