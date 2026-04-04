@@ -4,6 +4,19 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+## Artifacts
+
+### Hardware Inventory Pro (`artifacts/hardware-inventory`)
+- Frontend-only React + Vite app (NO backend, NO database, NO API calls)
+- All data is hardcoded mock JSON in `src/lib/mock-data.ts` + localStorage
+- Built for Filipino hardware store owners (RJ Hardware & Construction Supply)
+- Pages: Login, Dashboard, Products, Product Detail, Movements, Add Movement, Suppliers, Settings
+- Auth: localStorage flag `hw_logged_in` (mock-only, not real auth)
+- Store switcher: localStorage `hw_store_id`
+- New movements saved to: localStorage `hw_movements`
+- Tech: wouter routing, shadcn/ui, lucide-react, Tailwind CSS v4
+- Preview path: `/`
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces

@@ -1,0 +1,73 @@
+Build a FRONTEND-ONLY Next.js 14 App Router project called "Hardware Inventory Pro" with Tailwind CSS. NO backend, NO database, NO API calls — all data is hardcoded mock JSON and localStorage.
+
+THIS IS A UI/UX DEMO ONLY. Every screen uses static mock data defined in a single file: /lib/mock-data.ts
+
+MOCK DATA FILE (/lib/mock-data.ts):
+Export these arrays/objects with realistic Philippine hardware store data:
+
+1. currentUser: { name: "RJ Dela Cuesta", email: "rj@rjhardware.ph", role: "owner", avatar_initials: "RJ" }
+
+2. stores: [
+  { id: "1", store_name: "RJ Hardware & Construction Supply", branch_name: "Main Branch", address: "123 Rizal Ave, Quezon City" },
+  { id: "2", store_name: "RJ Hardware & Construction Supply", branch_name: "Branch 2", address: "456 Mabini St, Caloocan" }
+]
+
+3. categories: Cement, Wire & Cable, Lumber, Paint, Plumbing, Electrical, Tools, Nails & Screws — each with id, name, icon emoji, and a color hex
+
+4. products: 20 items across all categories with realistic PH hardware products:
+  - Portland Cement (primary_unit: bag, stock: 145, reorder_level: 50, cost: 220, price: 265)
+  - THHN Wire #12 Red (primary_unit: meter, stock: 2400, reorder: 500, cost: 8, price: 12)
+  - Coco Lumber 2x2x8 (primary_unit: piece, stock: 85, reorder: 30, cost: 45, price: 65)
+  - Boysen Latex White (primary_unit: gallon, stock: 32, reorder: 10, cost: 380, price: 485)
+  - GI Pipe 1/2 S40 (primary_unit: piece, stock: 60, reorder: 20, cost: 185, price: 245)
+  - Hollow Blocks 4" (primary_unit: piece, stock: 800, reorder: 200, cost: 9, price: 13)
+  - Common Nails 3" (primary_unit: kg, stock: 45, reorder: 15, cost: 65, price: 85)
+  - PVC Pipe 3/4 (primary_unit: piece, stock: 40, reorder: 15, cost: 55, price: 78)
+  - Hacksaw Blade (primary_unit: piece, stock: 5, reorder: 10, cost: 25, price: 40) ← LOW STOCK
+  - Roofing Nails (primary_unit: kg, stock: 0, reorder: 10, cost: 75, price: 95) ← OUT OF STOCK
+  ...and 10 more similar items. Some should be low stock, 1–2 should be zero stock.
+  Each product has: id, category_id, name, sku, barcode, primary_unit, stock_quantity, reorder_level, cost_price, selling_price, is_active, image_placeholder (emoji)
+
+5. unitConversions: [
+  { product_id for THHN Wire, from_unit: "roll", to_unit: "meter", factor: 150 },
+  { product_id for Cement, from_unit: "pallet", to_unit: "bag", factor: 40 },
+  { product_id for GI Pipe, from_unit: "bundle", to_unit: "piece", factor: 6 },
+  { product_id for Nails, from_unit: "box", to_unit: "kg", factor: 25 },
+  { product_id for Paint, from_unit: "pail", to_unit: "gallon", factor: 4 }
+]
+
+6. stockMovements: 25 recent movements with realistic entries like:
+  - { type: "in", product: "Portland Cement", qty: 200, unit: "bag", note: "Supplier delivery - Eagle Cement", by: "RJ", timestamp: recent dates }
+  - { type: "out", product: "THHN Wire #12", qty: 50, unit: "meter", note: "Walk-in customer", by: "RJ", timestamp: ... }
+  - { type: "adjustment", product: "Hollow Blocks", qty: -15, unit: "piece", note: "Breakage write-off", by: "RJ", timestamp: ... }
+  Mix of in/out/adjustments across different products over the last 7 days.
+
+7. suppliers: 5 entries — Eagle Cement Corp, Phelps Dodge PH, Boysen Paints, National Bookstore Hardware Div (placeholder), Everstrong Hardware Supply — each with name, contact, phone, email
+
+LOGIN SCREEN (/login):
+  Clean centered card on a blue gradient background (#1E40AF → #1E3A8A)
+  App logo area: wrench + box emoji or SVG, "Hardware Inventory Pro" title, "Built for Filipino Hardware Stores" subtitle
+  Fields: Email input (pre-filled with rj@rjhardware.ph), Password input (pre-filled with dots)
+  "Log In" button — on click, save a flag to localStorage and redirect to /dashboard
+  Below: "Don't have an account? Sign Up" link (non-functional, just for UI)
+  Bottom text: "🇵🇭 Made for Philippine Hardware Stores"
+  NO real authentication — just a visual screen with redirect
+
+GLOBAL LAYOUT (wraps all pages except /login):
+  Check localStorage for login flag; if not set, redirect to /login
+
+  Mobile (< 768px):
+  - Top header bar: hamburger menu button (toggles drawer), "Hardware Inventory Pro" text or current page title, user avatar circle with initials "RJ"
+  - Bottom tab bar with 4 tabs: Dashboard (LayoutDashboard icon), Products (Package icon), Movements (ArrowUpDown icon), More (Menu icon)
+  - Active tab: primary blue fill with label, inactive: gray icon only
+  
+  Desktop (≥ 768px):
+  - Left sidebar (240px, white, border-right): App logo/title at top, nav links same as tabs but vertical with labels always shown, active link has blue background pill, bottom section shows user profile card (initials, name, email, store name) and logout button
+  
+  Both:
+  - Store switcher dropdown in header showing current branch, allows switching between mock stores (updates a state variable, cosmetic only)
+  - Color scheme: Primary #1E40AF, Accent #F59E0B, Background #F8FAFC, Surface #FFFFFF, Danger #DC2626, Success #16A34A, Warning #D97706, Text #0F172A, Muted #64748B
+  - Font: Inter via Google Fonts or system-ui fallback
+  - Cards: rounded-xl, shadow-sm, border border-gray-100
+  - Buttons: rounded-lg for standard, rounded-full for pills/FABs
+  - All transitions: duration-200 ease-in-out
