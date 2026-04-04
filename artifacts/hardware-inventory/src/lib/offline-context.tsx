@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 interface OfflineContextValue {
   isOffline: boolean;
   isSyncing: boolean;
+  wasSynced: boolean;
   setSimulateOffline: (val: boolean) => void;
   simulateOffline: boolean;
 }
@@ -10,6 +11,7 @@ interface OfflineContextValue {
 const OfflineContext = createContext<OfflineContextValue>({
   isOffline: false,
   isSyncing: false,
+  wasSynced: false,
   setSimulateOffline: () => {},
   simulateOffline: false,
 });
@@ -24,17 +26,22 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const isOffline = !networkOnline || simulateOffline;
 
+  function triggerSyncSequence() {
+    setIsSyncing(true);
+    setWasSynced(false);
+    setTimeout(() => {
+      setIsSyncing(false);
+      setWasSynced(true);
+      setTimeout(() => setWasSynced(false), 2000);
+    }, 2000);
+  }
+
   useEffect(() => {
     function onOffline() { setNetworkOnline(false); }
     function onOnline() {
       setNetworkOnline(true);
       if (!simulateOffline) {
-        setIsSyncing(true);
-        setTimeout(() => {
-          setIsSyncing(false);
-          setWasSynced(true);
-          setTimeout(() => setWasSynced(false), 2000);
-        }, 2000);
+        triggerSyncSequence();
       }
     }
     window.addEventListener("offline", onOffline);
@@ -49,17 +56,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setSimulateOfflineState(val);
     localStorage.setItem("hw_simulate_offline", val ? "1" : "0");
     if (!val && networkOnline) {
-      setIsSyncing(true);
-      setTimeout(() => {
-        setIsSyncing(false);
-        setWasSynced(true);
-        setTimeout(() => setWasSynced(false), 2000);
-      }, 2000);
+      triggerSyncSequence();
     }
   }, [networkOnline]);
 
   return (
-    <OfflineContext.Provider value={{ isOffline, isSyncing, setSimulateOffline, simulateOffline }}>
+    <OfflineContext.Provider value={{ isOffline, isSyncing, wasSynced, setSimulateOffline, simulateOffline }}>
       {children}
     </OfflineContext.Provider>
   );

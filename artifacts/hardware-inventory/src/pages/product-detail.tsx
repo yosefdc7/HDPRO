@@ -33,7 +33,7 @@ export default function ProductDetailPage() {
   const markup = ((product.selling_price - product.cost_price) / product.cost_price * 100).toFixed(1);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-10">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">

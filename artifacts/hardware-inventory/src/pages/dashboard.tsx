@@ -79,9 +79,9 @@ function SkeletonCard() {
   );
 }
 
-function StatValue({ value, loaded }: { value: number; loaded: boolean }) {
+function StatValue({ value, loaded, format }: { value: number; loaded: boolean; format?: (n: number) => string }) {
   const displayed = useCountUp(value, 700, loaded);
-  return <>{displayed}</>;
+  return <>{format ? format(displayed) : displayed}</>;
 }
 
 export default function DashboardPage() {
@@ -170,7 +170,6 @@ export default function DashboardPage() {
     {
       label: "Inventory Value",
       numericValue: stats.inventoryValue,
-      formattedValue: formatPeso(stats.inventoryValue),
       icon: <PhilippinePeso className="h-6 w-6" />,
       iconBg: "bg-violet-50 text-violet-600",
       valueColor: "text-slate-900",
@@ -187,7 +186,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <PullToRefresh onRefresh={loadData} />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
@@ -246,9 +245,11 @@ export default function DashboardPage() {
                           card.valueColor
                         )}
                       >
-                        {card.isLarge && card.formattedValue
-                          ? card.formattedValue
-                          : <StatValue value={card.numericValue} loaded={loaded} />}
+                        <StatValue
+                          value={card.numericValue}
+                          loaded={loaded}
+                          format={card.isLarge ? formatPeso : undefined}
+                        />
                       </p>
                       {card.badge && (
                         <p className={cn("text-xs mt-1 font-medium", alertCount > 0 && i === 1 ? "text-red-500" : "text-green-600")}>

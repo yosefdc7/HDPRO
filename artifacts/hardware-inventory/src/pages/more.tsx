@@ -337,12 +337,12 @@ export default function MorePage() {
     navigate("/login");
   }
 
-  if (subView === "suppliers") return <div className="animate-in fade-in duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><SuppliersView /></div>;
-  if (subView === "unit-conversions") return <div className="animate-in fade-in duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><UnitConversionsView /></div>;
-  if (subView === "profile") return <div className="animate-in fade-in duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><ProfileView /></div>;
-  if (subView === "store-settings") return <div className="animate-in fade-in duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><StoreSettingsView /></div>;
-  if (subView === "help") return <div className="animate-in fade-in duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><HelpView /></div>;
-  if (subView === "about") return <div className="animate-in fade-in duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><AboutView /></div>;
+  if (subView === "suppliers") return <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><SuppliersView /></div>;
+  if (subView === "unit-conversions") return <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><UnitConversionsView /></div>;
+  if (subView === "profile") return <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><ProfileView /></div>;
+  if (subView === "store-settings") return <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><StoreSettingsView /></div>;
+  if (subView === "help") return <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><HelpView /></div>;
+  if (subView === "about") return <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><button onClick={() => setSubView(null)} className="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← Back</button><AboutView /></div>;
 
   const MenuGroup = ({ title, items }: { title: string; items: { icon: string; label: string; sublabel?: string; onClick: () => void; rightEl?: React.ReactNode }[] }) => (
     <div>
@@ -370,7 +370,7 @@ export default function MorePage() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 max-w-xl">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-xl">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">More</h1>
         <p className="text-slate-500 text-sm">Settings and tools</p>

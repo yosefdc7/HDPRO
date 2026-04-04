@@ -77,7 +77,7 @@ export default function BirExportPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl">
       <div className="flex items-center gap-3">
         <Link href="/more">
           <Button variant="ghost" size="icon" className="rounded-full bg-white shadow-sm border border-slate-200 text-slate-600">

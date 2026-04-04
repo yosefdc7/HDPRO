@@ -360,11 +360,16 @@
   button, [role="button"], a {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    transition: filter 150ms ease, transform 150ms ease;
   }
 
-  button:active:not([disabled]) {
-    transform: scale(0.97);
-    transition: transform 0.1s ease;
+  button:not([disabled]):hover, [role="button"]:hover {
+    filter: brightness(1.1);
+  }
+
+  button:active:not([disabled]), [role="button"]:active {
+    transform: scale(0.95);
+    filter: brightness(0.95);
   }
 
   /* Ensure inputs use 16px minimum on mobile to prevent iOS auto-zoom */

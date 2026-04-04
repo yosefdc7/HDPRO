@@ -70,7 +70,7 @@ export default function NewMovementPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="rounded-full">
           <ArrowLeft className="h-5 w-5" />

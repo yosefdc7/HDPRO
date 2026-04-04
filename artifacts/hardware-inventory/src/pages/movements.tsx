@@ -542,7 +542,7 @@ export default function MovementsPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <PullToRefresh onRefresh={loadData} />
       <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
         <div>

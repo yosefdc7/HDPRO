@@ -15,7 +15,7 @@ export default function SuppliersPage() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-10">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Suppliers</h1>
         <p className="text-slate-500 text-sm">Manage your supply chain contacts</p>

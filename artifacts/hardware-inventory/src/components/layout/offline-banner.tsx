@@ -1,25 +1,11 @@
-import { useEffect, useState } from "react";
 import { WifiOff, Wifi, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOffline } from "@/lib/offline-context";
 
 export default function OfflineBanner() {
-  const { isOffline, isSyncing } = useOffline();
-  const [prevOffline, setPrevOffline] = useState(isOffline);
-  const [showSynced, setShowSynced] = useState(false);
+  const { isOffline, isSyncing, wasSynced } = useOffline();
 
-  useEffect(() => {
-    if (prevOffline && !isOffline) {
-      if (!isSyncing) {
-        setShowSynced(true);
-        const t = setTimeout(() => setShowSynced(false), 2000);
-        return () => clearTimeout(t);
-      }
-    }
-    setPrevOffline(isOffline);
-  }, [isOffline, isSyncing, prevOffline]);
-
-  if (!isOffline && !isSyncing && !showSynced) return null;
+  if (!isOffline && !isSyncing && !wasSynced) return null;
 
   return (
     <div
@@ -41,16 +27,16 @@ export default function OfflineBanner() {
           <span>You're offline — all data is saved locally</span>
         </>
       )}
-      {isSyncing && (
+      {!isOffline && isSyncing && (
         <>
           <RefreshCw className="h-4 w-4 flex-shrink-0 animate-spin" />
           <span>Syncing your data...</span>
         </>
       )}
-      {!isOffline && !isSyncing && showSynced && (
+      {!isOffline && !isSyncing && wasSynced && (
         <>
           <Wifi className="h-4 w-4 flex-shrink-0" />
-          <span>Back online — all data synced!</span>
+          <span>Back online — all changes synced!</span>
         </>
       )}
     </div>
