@@ -109,7 +109,9 @@ export default function DashboardPage() {
       .sort((a, b) => b.value - a.value);
   }, [products]);
 
-  const maxCatValue = categoryValues[0]?.value ?? 1;
+  const totalInventoryValue = categoryValues.reduce((sum, c) => sum + c.value, 0) || 1;
+
+  const alertCount = stats.lowStock.length + stats.outOfStock.length;
 
   const statCards = [
     {
@@ -118,16 +120,15 @@ export default function DashboardPage() {
       icon: <Package className="h-6 w-6" />,
       iconBg: "bg-blue-50 text-blue-600",
       valueColor: "text-slate-900",
+      badge: null,
     },
     {
       label: "Low Stock Items",
-      value: stats.lowStock.length + stats.outOfStock.length,
+      value: alertCount,
       icon: <AlertTriangle className="h-6 w-6" />,
       iconBg: "bg-red-50 text-red-600",
-      valueColor:
-        stats.lowStock.length + stats.outOfStock.length > 0
-          ? "text-red-600"
-          : "text-slate-900",
+      valueColor: alertCount > 0 ? "text-red-600" : "text-green-600",
+      badge: alertCount > 0 ? `${stats.outOfStock.length} out · ${stats.lowStock.length} low` : "All stocked",
     },
     {
       label: "Today's Movements",
@@ -135,6 +136,7 @@ export default function DashboardPage() {
       icon: <ArrowDownUp className="h-6 w-6" />,
       iconBg: "bg-emerald-50 text-emerald-600",
       valueColor: "text-slate-900",
+      badge: null,
     },
     {
       label: "Inventory Value",
@@ -143,6 +145,7 @@ export default function DashboardPage() {
       iconBg: "bg-violet-50 text-violet-600",
       valueColor: "text-slate-900",
       isLarge: true,
+      badge: null,
     },
   ];
 
@@ -182,6 +185,11 @@ export default function DashboardPage() {
                       >
                         {card.value}
                       </p>
+                      {card.badge && (
+                        <p className={cn("text-xs mt-1 font-medium", alertCount > 0 && i === 1 ? "text-red-500" : "text-green-600")}>
+                          {card.badge}
+                        </p>
+                      )}
                     </div>
                     <div className={cn("p-3 rounded-xl", card.iconBg)}>
                       {card.icon}
@@ -371,7 +379,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {categoryValues.map((cat) => {
-                const pct = Math.max(4, (cat.value / maxCatValue) * 100);
+                const pct = Math.max(4, (cat.value / totalInventoryValue) * 100);
                 return (
                   <div key={cat.name} data-testid={`cat-bar-${cat.name}`}>
                     <div className="flex items-center justify-between mb-1.5">
