@@ -1,0 +1,102 @@
+Build the Dashboard and Products pages for Hardware Inventory Pro. Use the mock data from /lib/mock-data.ts for everything. No API calls — read from mock arrays, write to localStorage for any state changes.
+
+DASHBOARD PAGE (/dashboard):
+
+Section A — Summary Cards Row:
+  4 cards in a horizontal scrollable row on mobile, grid on desktop:
+  1. "Total Products" — count of active products from mock data, icon: 📦, blue background tint
+  2. "Low Stock" — count where stock_quantity <= reorder_level, icon: ⚠️, amber background tint. Red text if count > 0
+  3. "Today's Movements" — count of movements with today's date from mock, icon: 🔄, purple background tint
+  4. "Inventory Value" — SUM(stock_quantity × cost_price) formatted as ₱XXX,XXX, icon: 💰, green background tint
+  Cards should have large bold number, label below, subtle background color tint, hover scale-105 animation
+
+Section B — Low Stock Alerts:
+  Title: "⚠️ Needs Restock" with count badge
+  List products where stock_quantity <= reorder_level, sorted by stock ascending
+  Each row: product emoji, product name (bold), category as colored pill badge, stock display "{current}/{reorder_level} {unit}" with progress bar showing percentage, colored red if 0, amber if low
+  Empty state: green checkmark icon, "All stocked up! 🎉" message
+  Max 5 items shown + "View All →" link to products page with low-stock filter
+
+Section C — Recent Activity:
+  Title: "Recent Activity"
+  Last 10 movements from mock data
+  Each row: colored circle icon (green ↑ for "in", red ↓ for "out", blue ↻ for "adjustment"), product name, quantity with unit ("+200 bags" or "-50 meters"), reference note in muted text, relative timestamp ("2h ago", "Yesterday"), recorded by name
+  "View All →" link to movements page
+
+Section D — Category Overview:
+  Title: "Stock by Category"
+  Show each category with: emoji icon, category name, product count, total value (₱), horizontal colored bar representing proportion of total value
+  Sort by value descending
+  Use category-specific colors for bars
+
+All sections: loading skeleton shimmer states (show for 800ms on initial render, then show data), smooth fade-in animation when data appears.
+
+PRODUCTS PAGE (/products):
+
+Top controls bar:
+  - Search input with magnifying glass icon (filters products by name or SKU, client-side)
+  - Category filter dropdown: "All Categories" + each category. Filters the product list client-side
+  - Stock filter: "All" | "Low Stock" | "Out of Stock" pill toggle buttons
+  - View toggle: Grid icon / List icon (switches layout)
+  - "＋ Add Product" button (primary blue, opens modal)
+  - Show result count: "Showing X of Y products"
+
+Grid View (default on mobile, 2 columns on mobile, 3 on tablet, 4 on desktop):
+  Product card:
+  - Top: large emoji for product category on a colored background circle
+  - Product name (bold, 2 lines max, truncate)
+  - SKU in muted small text
+  - Category as small colored pill badge
+  - Stock indicator: green dot + "In Stock (145)", amber dot + "Low Stock (5)", red dot + "Out of Stock"
+  - Price: ₱XXX.XX in bold
+  - Unit label in muted text (e.g., "per bag")
+  - Bottom: subtle border-top, "View" button on left, 3-dot menu on right
+  - Hover: lift shadow, scale-[1.02]
+  - Tap/click card → opens Product Detail slide-over
+
+List View (default on desktop):
+  Table with columns: Product (emoji + name + SKU), Category, Stock, Unit, Cost (₱), Price (₱), Status badge
+  Status: green "In Stock", amber "Low", red "Out" pill badges
+  Clickable rows → open Product Detail
+  Sortable column headers (click to sort by that column, client-side)
+  Alternating row backgrounds, hover highlight
+
+Add / Edit Product Modal (centered on desktop, bottom sheet on mobile):
+  Title: "Add New Product" or "Edit Product"
+  Fields in a clean form layout:
+  - Product Name (text, required)
+  - SKU (text, auto-generate suggestion like "HW-0021")
+  - Barcode (text, with a grayed-out scan icon button)
+  - Category (dropdown from mock categories)
+  - Primary Unit (dropdown: bag, meter, roll, piece, board-foot, gallon, box, kg, pallet, bundle, sheet, can, pair, set, liter)
+  - Current Stock (number)
+  - Reorder Level (number)
+  - Cost Price ₱ (number, formatted)
+  - Selling Price ₱ (number, formatted)
+  - Margin display: auto-calculated "Margin: ₱XX (XX%)" shown live as user types cost/price
+  
+  Unit Conversions sub-section:
+  - Title: "Unit Conversions" with "+ Add Conversion" link
+  - Each row: "1 [dropdown] = [number input] [dropdown]"
+  - Example pre-filled: "1 roll = 150 meters"
+  - Can add multiple rows, delete with X button
+  
+  Footer: "Cancel" (ghost) and "Save Product" (primary) buttons
+  On save: add to localStorage mock data, show success toast notification, close modal, update product list
+  Validation: highlight missing required fields in red with error messages
+
+Product Detail Panel:
+  Desktop: slide-over from right (400px wide, overlay background)
+  Mobile: full-screen page with back arrow
+  
+  Content:
+  - Header: product name large, category badge, active/inactive toggle
+  - Info grid: SKU, Barcode, Unit, Cost Price, Selling Price, Margin %, Reorder Level
+  - Stock section: large bold stock number with unit, colored status badge, mini progress bar (stock vs reorder)
+  - Unit Conversions: listed as "1 roll = 150 meters", "1 pallet = 40 bags" etc. Show "Also sold as: X meters (from Y rolls)" calculated display
+  - Movement History: last 5 movements for this product from mock data, same row style as dashboard
+  - Quick Action Buttons: "📥 Stock In" and "📤 Stock Out" buttons → open a mini form (quantity + unit dropdown + note) → on submit, add to localStorage movements, update stock, show toast
+  - "✏️ Edit" and "🗑️ Delete" buttons at bottom
+  - Delete: confirmation dialog "Are you sure? This cannot be undone." → removes from localStorage
+
+Toast notifications: slide in from top-right, auto-dismiss after 3 seconds, green for success, red for error, with close X button.
