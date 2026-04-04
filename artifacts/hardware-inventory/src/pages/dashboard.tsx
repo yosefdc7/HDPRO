@@ -149,16 +149,48 @@ export default function DashboardPage() {
     },
   ];
 
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  }, []);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          Good morning, {currentUser.name.split(" ")[0]}!
+          {greeting}, {currentUser.name.split(" ")[0]}!
         </h1>
         <p className="text-slate-500 mt-1">
           Here's what's happening in your store today.
         </p>
       </div>
+
+      {/* Quick Actions */}
+      {loaded && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Add Product", href: "/products", emoji: "➕", color: "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-100" },
+            { label: "Stock In", href: "/movements", emoji: "📥", color: "bg-green-50 hover:bg-green-100 text-green-700 border-green-100" },
+            { label: "Stock Out", href: "/movements", emoji: "📤", color: "bg-red-50 hover:bg-red-100 text-red-700 border-red-100" },
+            { label: "Scan Barcode", href: "/scan", emoji: "📷", color: "bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-100" },
+          ].map((action) => (
+            <Link
+              key={action.label}
+              href={action.href}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-xl border font-medium text-sm transition-all duration-200 active:scale-95",
+                action.color
+              )}
+              data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              <span className="text-xl">{action.emoji}</span>
+              <span>{action.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

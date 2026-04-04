@@ -286,6 +286,8 @@ function HelpView() {
 }
 
 function AboutView() {
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-slate-900">ℹ️ About</h2>
@@ -298,6 +300,23 @@ function AboutView() {
           <p className="text-xs text-slate-400 mt-4">RJ Hardware & Construction Supply<br/>Empowering local hardware businesses with smart inventory management.</p>
         </CardContent>
       </Card>
+      {!isStandalone && (
+        <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+          <span className="text-2xl flex-shrink-0">📱</span>
+          <div>
+            <p className="text-sm font-semibold text-blue-900">Install as App</p>
+            <p className="text-xs text-blue-700 mt-1">
+              On Android: tap the browser menu and select "Add to Home Screen". On iOS Safari: tap the Share button then "Add to Home Screen".
+            </p>
+          </div>
+        </div>
+      )}
+      {isStandalone && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
+          <span className="text-2xl">✅</span>
+          <p className="text-sm font-semibold text-green-800">App is installed on this device</p>
+        </div>
+      )}
     </div>
   );
 }

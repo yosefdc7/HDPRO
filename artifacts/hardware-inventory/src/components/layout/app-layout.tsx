@@ -19,6 +19,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import OfflineBanner from "@/components/layout/offline-banner";
+import PwaInstallPrompt from "@/components/layout/pwa-install-prompt";
 
 const mainNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -145,6 +147,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       <div className="flex-1 md:pl-64 flex flex-col min-h-[100dvh]">
+        {/* PWA & Offline Banners */}
+        <PwaInstallPrompt />
+        <OfflineBanner />
+
         {/* Mobile/Desktop Header */}
         <header className="sticky top-0 z-40 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3 md:hidden">
