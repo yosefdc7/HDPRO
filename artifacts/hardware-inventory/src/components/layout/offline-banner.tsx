@@ -1,4 +1,4 @@
-import { WifiOff, Wifi, RefreshCw } from "lucide-react";
+import { Wifi, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOffline } from "@/lib/offline-context";
 
@@ -23,8 +23,11 @@ export default function OfflineBanner() {
     >
       {isOffline && (
         <>
-          <WifiOff className="h-4 w-4 flex-shrink-0" />
-          <span>You're offline — all data is saved locally</span>
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-200 flex-shrink-0 animate-pulse"
+            aria-hidden="true"
+          />
+          <span>You're offline — all changes are saved locally</span>
         </>
       )}
       {!isOffline && isSyncing && (

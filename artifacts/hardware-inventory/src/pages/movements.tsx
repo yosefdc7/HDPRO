@@ -616,17 +616,26 @@ export default function MovementsPage() {
             {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-16 text-center">
-            <PackageSearch className="h-12 w-12 mx-auto text-slate-300 mb-3" />
+          <div className="py-16 text-center flex flex-col items-center gap-3">
             {movements.length === 0 ? (
               <>
-                <p className="font-medium text-slate-700">No movements recorded yet</p>
-                <p className="text-sm text-slate-400 mt-1">Click "Record Movement" to get started</p>
+                <span className="text-5xl">🔄</span>
+                <p className="font-semibold text-slate-700">No movements recorded yet</p>
+                <p className="text-sm text-slate-400">Record your first stock movement to get started.</p>
+                <Button
+                  size="sm"
+                  className="bg-blue-700 hover:bg-blue-800 text-white mt-1"
+                  onClick={() => setShowModal(true)}
+                  data-testid="empty-record-movement-btn"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Record Movement
+                </Button>
               </>
             ) : (
               <>
-                <p className="font-medium text-slate-700">No results match your filters</p>
-                <p className="text-sm text-slate-400 mt-1">Try adjusting the search or date/type filters</p>
+                <span className="text-5xl">🔍</span>
+                <p className="font-semibold text-slate-700">No results match your filters</p>
+                <p className="text-sm text-slate-400">Try adjusting the search or date/type filters.</p>
               </>
             )}
           </div>

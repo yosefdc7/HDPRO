@@ -1067,17 +1067,29 @@ export default function ProductsPage() {
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <span className="text-5xl">🔍</span>
-                        <p className="text-base font-semibold text-slate-700">No results found</p>
-                        <p className="text-sm text-slate-400 max-w-xs">
-                          {anyFilterActive || searchQuery
-                            ? "Try adjusting your search or clearing column filters."
-                            : "No products in your catalog yet."}
-                        </p>
-                        {(anyFilterActive || searchQuery) && (
-                          <Button variant="outline" size="sm" onClick={() => { handleClearAll(); setSearchQuery(""); }} className="mt-1 text-xs">
-                            Clear All Filters
-                          </Button>
+                        {localProducts.length === 0 ? (
+                          <>
+                            <span className="text-5xl">📦</span>
+                            <p className="text-base font-semibold text-slate-700">No products yet</p>
+                            <p className="text-sm text-slate-400 max-w-xs">Add your first product to start tracking inventory.</p>
+                            <Button
+                              size="sm"
+                              className="bg-blue-700 hover:bg-blue-800 text-white mt-1"
+                              onClick={() => setShowAddModal(true)}
+                              data-testid="empty-add-product-btn"
+                            >
+                              <Plus className="h-4 w-4 mr-1" /> Add Product
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-5xl">🔍</span>
+                            <p className="text-base font-semibold text-slate-700">No results found</p>
+                            <p className="text-sm text-slate-400 max-w-xs">Try adjusting your search or clearing column filters.</p>
+                            <Button variant="outline" size="sm" onClick={() => { handleClearAll(); setSearchQuery(""); }} className="mt-1 text-xs">
+                              Clear All Filters
+                            </Button>
+                          </>
                         )}
                       </div>
                     </td>
