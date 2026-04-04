@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -11,7 +11,6 @@ import {
   Layers,
   Trash2,
   ChevronDown,
-  ArrowUpDown,
   SortAsc,
   SortDesc,
   FilterX,
@@ -29,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import { categories, currentUser } from "@/lib/mock-data";
 import {
   getProducts,
@@ -938,7 +936,7 @@ export default function ProductsPage() {
               data-testid="clear-all-filters-btn"
             >
               <FilterX className="h-3.5 w-3.5" />
-              Clear Filters
+              Clear All Filters
               {activeFilterCount > 0 && (
                 <span className="bg-amber-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
                   {activeFilterCount}
