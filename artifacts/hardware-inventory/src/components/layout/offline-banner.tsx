@@ -27,7 +27,7 @@ export default function OfflineBanner() {
             className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-200 flex-shrink-0 animate-pulse"
             aria-hidden="true"
           />
-          <span>You're offline — all changes are saved locally</span>
+          <span>You're offline — changes will sync when reconnected</span>
         </>
       )}
       {!isOffline && isSyncing && (

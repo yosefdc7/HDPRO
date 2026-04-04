@@ -5,9 +5,8 @@ export default function NotFound() {
   const [, navigate] = useLocation();
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-4">
-      <div className="text-center space-y-4 max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="text-7xl">🔧</div>
-        <h1 className="text-3xl font-bold text-slate-900">Page Not Found</h1>
+      <div className="text-center space-y-4 max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <h1 className="text-3xl font-bold text-slate-900">🔧 Page Not Found</h1>
         <p className="text-slate-500">
           Looks like this aisle doesn't exist.
         </p>

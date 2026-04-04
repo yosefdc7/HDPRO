@@ -6,6 +6,7 @@
   "background_color": "#f8fafc",
   "display": "standalone",
   "orientation": "portrait-primary",
+  "start_url": "/dashboard",
   "icons": [
     {
       "src": "pwa-192x192.png",
