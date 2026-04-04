@@ -1,19 +1,20 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Search,
-  Filter,
   Plus,
   Package,
   LayoutGrid,
   List,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
   ArrowUpCircle,
   ArrowDownCircle,
   X,
   Layers,
   Trash2,
+  ChevronDown,
+  ArrowUpDown,
+  SortAsc,
+  SortDesc,
+  FilterX,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { categories, currentUser } from "@/lib/mock-data";
 import {
   getProducts,
@@ -41,10 +44,16 @@ import {
 import { formatPeso, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
-type SortKey = "name" | "category" | "stock_quantity" | "primary_unit" | "cost_price" | "selling_price";
+type ColKey = "name" | "category" | "stock_quantity" | "primary_unit" | "cost_price" | "selling_price";
 type SortDir = "asc" | "desc";
-type StockFilter = "all" | "low" | "out";
 type ViewMode = "list" | "grid";
+
+interface ColumnFilterState {
+  sort: SortDir | null;
+  selectedValues: Set<string>;
+}
+
+type ColumnFilters = Partial<Record<ColKey, ColumnFilterState>>;
 
 function getStockStatus(p: Product) {
   if (p.stock_quantity === 0) return "out";
@@ -52,14 +61,292 @@ function getStockStatus(p: Product) {
   return "ok";
 }
 
-function SortIcon({ col, sort }: { col: SortKey; sort: { key: SortKey; dir: SortDir } }) {
-  if (sort.key !== col) return <ChevronsUpDown className="h-3.5 w-3.5 text-slate-400" />;
-  return sort.dir === "asc"
-    ? <ChevronUp className="h-3.5 w-3.5 text-blue-600" />
-    : <ChevronDown className="h-3.5 w-3.5 text-blue-600" />;
+function getColumnDisplayValue(col: ColKey, p: Product): string {
+  switch (col) {
+    case "name": return p.name;
+    case "category": {
+      const cat = categories.find((c) => c.id === p.category_id);
+      return cat ? `${cat.icon} ${cat.name}` : "Unknown";
+    }
+    case "stock_quantity": {
+      const s = getStockStatus(p);
+      return s === "out" ? "Out of Stock" : s === "low" ? "Low Stock" : "In Stock";
+    }
+    case "primary_unit": return p.primary_unit;
+    case "cost_price": return formatPeso(p.cost_price);
+    case "selling_price": return formatPeso(p.selling_price);
+  }
 }
 
-// ─── Add Product Modal ───────────────────────────────────────────────────────
+function getSortValue(col: ColKey, p: Product): string | number {
+  switch (col) {
+    case "name": return p.name.toLowerCase();
+    case "category": {
+      const cat = categories.find((c) => c.id === p.category_id);
+      return cat?.name.toLowerCase() ?? "";
+    }
+    case "stock_quantity": return p.stock_quantity;
+    case "primary_unit": return p.primary_unit.toLowerCase();
+    case "cost_price": return p.cost_price;
+    case "selling_price": return p.selling_price;
+  }
+}
+
+function getUniqueValues(col: ColKey, products: Product[]): string[] {
+  const set = new Set<string>();
+  products.forEach((p) => set.add(getColumnDisplayValue(col, p)));
+  const arr = Array.from(set);
+  if (col === "stock_quantity") {
+    const order = ["In Stock", "Low Stock", "Out of Stock"];
+    return order.filter((v) => arr.includes(v));
+  }
+  return arr.sort((a, b) => a.localeCompare(b));
+}
+
+function isFilterActive(f: ColumnFilterState | undefined): boolean {
+  if (!f) return false;
+  return f.selectedValues.size > 0;
+}
+
+function isSortActive(f: ColumnFilterState | undefined): boolean {
+  if (!f) return false;
+  return f.sort !== null;
+}
+
+// ─── Excel-style Column Header ────────────────────────────────────────────────
+
+interface ExcelColumnHeaderProps {
+  col: ColKey;
+  label: string;
+  allProducts: Product[];
+  filter: ColumnFilterState | undefined;
+  onApply: (col: ColKey, sort: SortDir | null, selectedValues: Set<string>) => void;
+  onClear: (col: ColKey) => void;
+  className?: string;
+  align?: "left" | "right";
+}
+
+function ExcelColumnHeader({
+  col,
+  label,
+  allProducts,
+  filter,
+  onApply,
+  onClear,
+  className,
+  align = "left",
+}: ExcelColumnHeaderProps) {
+  const [open, setOpen] = useState(false);
+  const [searchVal, setSearchVal] = useState("");
+  const [localSort, setLocalSort] = useState<SortDir | null>(filter?.sort ?? null);
+  const [localSelected, setLocalSelected] = useState<Set<string>>(
+    new Set(filter?.selectedValues ?? [])
+  );
+
+  const allValues = useMemo(() => getUniqueValues(col, allProducts), [col, allProducts]);
+
+  const filteredValues = useMemo(
+    () =>
+      searchVal.trim()
+        ? allValues.filter((v) => v.toLowerCase().includes(searchVal.toLowerCase()))
+        : allValues,
+    [allValues, searchVal]
+  );
+
+  const active = isFilterActive(filter);
+  const sorted = isSortActive(filter);
+
+  function onOpenChange(v: boolean) {
+    if (v) {
+      setLocalSort(filter?.sort ?? null);
+      setLocalSelected(new Set(filter?.selectedValues ?? []));
+      setSearchVal("");
+    }
+    setOpen(v);
+  }
+
+  function handleSelectAll(checked: boolean) {
+    if (checked) {
+      setLocalSelected(new Set(filteredValues));
+    } else {
+      setLocalSelected((prev) => {
+        const next = new Set(prev);
+        filteredValues.forEach((v) => next.delete(v));
+        return next;
+      });
+    }
+  }
+
+  function handleCheckValue(val: string, checked: boolean) {
+    setLocalSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(val);
+      else next.delete(val);
+      return next;
+    });
+  }
+
+  const allFilteredSelected =
+    filteredValues.length > 0 && filteredValues.every((v) => localSelected.has(v));
+  const someFilteredSelected =
+    !allFilteredSelected && filteredValues.some((v) => localSelected.has(v));
+
+  function handleOK() {
+    const effectiveSelected =
+      localSelected.size === allValues.length ? new Set<string>() : localSelected;
+    onApply(col, localSort, effectiveSelected);
+    setOpen(false);
+  }
+
+  function handleClear() {
+    setLocalSort(null);
+    setLocalSelected(new Set());
+    onClear(col);
+    setOpen(false);
+  }
+
+  return (
+    <th
+      className={cn(
+        "relative select-none whitespace-nowrap transition-colors",
+        active || sorted ? "bg-blue-50" : "bg-slate-50",
+        className
+      )}
+      data-testid={`col-header-${col}`}
+    >
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "flex items-center gap-1 w-full px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-colors hover:text-blue-700 focus:outline-none",
+              active || sorted ? "text-blue-700" : "text-slate-500",
+              align === "right" ? "justify-end" : "justify-between"
+            )}
+            data-testid={`col-filter-btn-${col}`}
+          >
+            <span className={cn("flex items-center gap-1", align === "right" && "flex-row-reverse")}>
+              {label}
+              {sorted && filter?.sort === "asc" && <SortAsc className="h-3 w-3 text-blue-600 flex-shrink-0" />}
+              {sorted && filter?.sort === "desc" && <SortDesc className="h-3 w-3 text-blue-600 flex-shrink-0" />}
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-3 w-3 flex-shrink-0 transition-transform",
+                open && "rotate-180",
+                active || sorted ? "text-blue-600" : "text-slate-400"
+              )}
+            />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align={align === "right" ? "end" : "start"}
+          className="w-56 p-0 shadow-lg border border-slate-200 rounded-lg overflow-hidden"
+          data-testid={`col-filter-panel-${col}`}
+        >
+          <div className="bg-blue-700 px-3 py-2">
+            <p className="text-xs font-semibold text-white uppercase tracking-wide">{label}</p>
+          </div>
+
+          <div className="border-b border-slate-100 p-2 space-y-1">
+            <button
+              onClick={() => setLocalSort("asc")}
+              className={cn(
+                "flex items-center gap-2 w-full text-left text-xs px-2 py-1.5 rounded transition-colors",
+                localSort === "asc"
+                  ? "bg-blue-100 text-blue-700 font-semibold"
+                  : "hover:bg-slate-50 text-slate-700"
+              )}
+              data-testid={`sort-asc-${col}`}
+            >
+              <SortAsc className="h-3.5 w-3.5" />
+              Sort A → Z
+            </button>
+            <button
+              onClick={() => setLocalSort("desc")}
+              className={cn(
+                "flex items-center gap-2 w-full text-left text-xs px-2 py-1.5 rounded transition-colors",
+                localSort === "desc"
+                  ? "bg-blue-100 text-blue-700 font-semibold"
+                  : "hover:bg-slate-50 text-slate-700"
+              )}
+              data-testid={`sort-desc-${col}`}
+            >
+              <SortDesc className="h-3.5 w-3.5" />
+              Sort Z → A
+            </button>
+          </div>
+
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchVal}
+                onChange={(e) => setSearchVal(e.target.value)}
+                className="w-full text-xs pl-6 pr-2 py-1.5 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                data-testid={`filter-search-${col}`}
+              />
+            </div>
+          </div>
+
+          <div className="max-h-40 overflow-y-auto p-2 space-y-0.5">
+            <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-slate-50 cursor-pointer text-xs font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
+                checked={allFilteredSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = someFilteredSelected;
+                }}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+                data-testid={`select-all-${col}`}
+              />
+              (Select All)
+            </label>
+            {filteredValues.map((val) => (
+              <label
+                key={val}
+                className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-slate-50 cursor-pointer text-xs text-slate-700"
+              >
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
+                  checked={localSelected.has(val)}
+                  onChange={(e) => handleCheckValue(val, e.target.checked)}
+                  data-testid={`filter-val-${col}-${val}`}
+                />
+                {val}
+              </label>
+            ))}
+            {filteredValues.length === 0 && (
+              <p className="text-xs text-slate-400 italic px-1 py-1">No matches</p>
+            )}
+          </div>
+
+          <div className="flex gap-2 p-2 border-t border-slate-100">
+            <button
+              onClick={handleOK}
+              className="flex-1 text-xs bg-blue-700 hover:bg-blue-800 text-white rounded px-3 py-1.5 font-semibold transition-colors"
+              data-testid={`filter-ok-${col}`}
+            >
+              OK
+            </button>
+            <button
+              onClick={handleClear}
+              className="flex-1 text-xs border border-slate-200 hover:bg-slate-50 text-slate-600 rounded px-3 py-1.5 font-medium transition-colors"
+              data-testid={`filter-clear-${col}`}
+            >
+              Clear
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </th>
+  );
+}
+
+// ─── Add Product Modal ────────────────────────────────────────────────────────
 
 interface UnitConvRow { id: string; from_unit: string; to_unit: string; factor: string }
 
@@ -246,7 +533,6 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
             </div>
           )}
 
-          {/* Unit Conversions */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
@@ -287,7 +573,7 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
   );
 }
 
-// ─── Product Detail Slide-over ───────────────────────────────────────────────
+// ─── Product Detail Slide-over ────────────────────────────────────────────────
 
 interface SlideoverProps {
   product: Product | null;
@@ -487,12 +773,19 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
 
 // ─── Main Products Page ───────────────────────────────────────────────────────
 
+const ALL_COLS: { key: ColKey; label: string; align?: "left" | "right" }[] = [
+  { key: "name", label: "Product" },
+  { key: "category", label: "Category" },
+  { key: "stock_quantity", label: "Stock", align: "right" },
+  { key: "primary_unit", label: "Unit" },
+  { key: "cost_price", label: "Cost", align: "right" },
+  { key: "selling_price", label: "Price", align: "right" },
+];
+
 export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
@@ -503,47 +796,75 @@ export default function ProductsPage() {
     setAllConversions(getConversions());
   }, []);
 
-  function toggleSort(key: SortKey) {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" }
-    );
+  function handleApplyFilter(col: ColKey, sort: SortDir | null, selectedValues: Set<string>) {
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      if (sort === null && selectedValues.size === 0) {
+        delete next[col];
+      } else {
+        const prevSort = prev[col]?.sort ?? null;
+        const newSort = sort;
+        if (newSort !== null && newSort !== prevSort) {
+          Object.keys(next).forEach((k) => {
+            if (k !== col && next[k as ColKey]?.sort) {
+              next[k as ColKey] = { ...next[k as ColKey]!, sort: null };
+            }
+          });
+        }
+        next[col] = { sort: newSort, selectedValues };
+      }
+      return next;
+    });
   }
+
+  function handleClearFilter(col: ColKey) {
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      delete next[col];
+      return next;
+    });
+  }
+
+  function handleClearAll() {
+    setColumnFilters({});
+  }
+
+  const anyFilterActive = Object.values(columnFilters).some(
+    (f) => f && (f.selectedValues.size > 0 || f.sort !== null)
+  );
 
   const filteredProducts = useMemo(() => {
     let list = localProducts.filter((p) => {
       const matchSearch =
+        !searchQuery ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.sku.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchCat = selectedCategory ? p.category_id === selectedCategory : true;
-      const status = getStockStatus(p);
-      const matchStock =
-        stockFilter === "all" ? true : stockFilter === "low" ? status === "low" : status === "out";
-      return matchSearch && matchCat && matchStock;
+
+      const matchCols = ALL_COLS.every(({ key }) => {
+        const f = columnFilters[key];
+        if (!f || f.selectedValues.size === 0) return true;
+        return f.selectedValues.has(getColumnDisplayValue(key, p));
+      });
+
+      return matchSearch && matchCols;
     });
 
-    list.sort((a, b) => {
-      let aVal: string | number = "";
-      let bVal: string | number = "";
-      if (sort.key === "name") { aVal = a.name; bVal = b.name; }
-      else if (sort.key === "category") {
-        aVal = categories.find((c) => c.id === a.category_id)?.name ?? "";
-        bVal = categories.find((c) => c.id === b.category_id)?.name ?? "";
-      }
-      else if (sort.key === "stock_quantity") { aVal = a.stock_quantity; bVal = b.stock_quantity; }
-      else if (sort.key === "primary_unit") { aVal = a.primary_unit; bVal = b.primary_unit; }
-      else if (sort.key === "cost_price") { aVal = a.cost_price; bVal = b.cost_price; }
-      else if (sort.key === "selling_price") { aVal = a.selling_price; bVal = b.selling_price; }
-
-      if (typeof aVal === "string") {
-        return sort.dir === "asc" ? aVal.localeCompare(bVal as string) : (bVal as string).localeCompare(aVal);
-      }
-      return sort.dir === "asc" ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
-    });
+    const sortEntry = Object.entries(columnFilters).find(([, f]) => f?.sort !== null);
+    if (sortEntry) {
+      const [key, f] = sortEntry;
+      const dir = f!.sort!;
+      list = [...list].sort((a, b) => {
+        const aV = getSortValue(key as ColKey, a);
+        const bV = getSortValue(key as ColKey, b);
+        if (typeof aV === "string" && typeof bV === "string") {
+          return dir === "asc" ? aV.localeCompare(bV) : bV.localeCompare(aV);
+        }
+        return dir === "asc" ? (aV as number) - (bV as number) : (bV as number) - (aV as number);
+      });
+    }
 
     return list;
-  }, [localProducts, searchQuery, selectedCategory, stockFilter, sort]);
+  }, [localProducts, searchQuery, columnFilters]);
 
   const handleProductSaved = useCallback((p: Product) => {
     setLocalProducts((prev) => [...prev, p]);
@@ -559,23 +880,13 @@ export default function ProductsPage() {
     );
   }, []);
 
-  const stockFilterOptions: { key: StockFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "low", label: "Low Stock" },
-    { key: "out", label: "Out of Stock" },
-  ];
-
-  const tableColumns: { key: SortKey; label: string; className?: string }[] = [
-    { key: "name", label: "Product" },
-    { key: "category", label: "Category" },
-    { key: "stock_quantity", label: "Stock", className: "text-right" },
-    { key: "primary_unit", label: "Unit" },
-    { key: "cost_price", label: "Cost", className: "text-right" },
-    { key: "selling_price", label: "Price", className: "text-right" },
-  ];
+  const activeFilterCount = Object.values(columnFilters).filter(
+    (f) => f && f.selectedValues.size > 0
+  ).length;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Products</h1>
@@ -591,18 +902,38 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex gap-3 items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search by name or SKU..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-50 border-slate-200 rounded-lg"
-              data-testid="search-input"
-            />
-          </div>
+      {/* Toolbar */}
+      <div className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search by name or SKU..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-slate-50 border-slate-200 rounded-lg h-9 text-sm"
+            data-testid="search-input"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          {anyFilterActive && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearAll}
+              className="h-9 text-xs gap-1.5 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+              data-testid="clear-all-filters-btn"
+            >
+              <FilterX className="h-3.5 w-3.5" />
+              Clear Filters
+              {activeFilterCount > 0 && (
+                <span className="bg-amber-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          )}
+
           <div className="flex border border-slate-200 rounded-lg overflow-hidden">
             <button
               onClick={() => setViewMode("list")}
@@ -623,113 +954,85 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
-          <div className="flex border border-slate-200 rounded-lg overflow-hidden">
-            {stockFilterOptions.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setStockFilter(opt.key)}
-                className={cn(
-                  "px-3 py-1 text-xs font-medium transition-colors",
-                  stockFilter === opt.key ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-                )}
-                data-testid={`stock-filter-${opt.key}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-5 bg-slate-200" />
-
-          <Badge
-            variant="outline"
-            className={cn("px-3 py-1 cursor-pointer rounded-lg text-xs font-medium border-slate-200 transition-colors", selectedCategory === null ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-slate-100 text-slate-600")}
-            onClick={() => setSelectedCategory(null)}
-            data-testid="cat-filter-all"
-          >
-            All Categories
-          </Badge>
-          {categories.map((cat) => (
-            <Badge
-              key={cat.id}
-              variant="outline"
-              className={cn("px-3 py-1 cursor-pointer rounded-lg text-xs font-medium border-slate-200 transition-colors flex items-center gap-1", selectedCategory === cat.id ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-slate-100 text-slate-600")}
-              onClick={() => setSelectedCategory(cat.id)}
-              data-testid={`cat-filter-${cat.id}`}
-            >
-              {cat.icon} {cat.name}
-            </Badge>
-          ))}
-        </div>
+        <p className="text-xs text-slate-500 ml-auto" data-testid="results-count">
+          Showing{" "}
+          <span className={cn("font-semibold", filteredProducts.length < localProducts.length ? "text-blue-700" : "text-slate-800")}>
+            {filteredProducts.length}
+          </span>{" "}
+          of {localProducts.length} products
+        </p>
       </div>
 
-      <p className="text-sm text-slate-500" data-testid="results-count">
-        Showing <span className="font-semibold text-slate-800">{filteredProducts.length}</span> of{" "}
-        {localProducts.length} products
-      </p>
-
+      {/* List View — Excel-style table */}
       {viewMode === "list" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-testid="products-table">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  {tableColumns.map((col) => (
-                    <th
+            <table className="w-full text-sm border-collapse" data-testid="products-table">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b-2 border-slate-300">
+                  {ALL_COLS.map((col) => (
+                    <ExcelColumnHeader
                       key={col.key}
-                      onClick={() => toggleSort(col.key)}
-                      className={cn("px-4 py-3 font-semibold text-slate-600 cursor-pointer select-none whitespace-nowrap hover:text-slate-900 transition-colors", col.className)}
-                      data-testid={`col-header-${col.key}`}
-                    >
-                      <span className="flex items-center gap-1">
-                        {col.label}
-                        <SortIcon col={col.key} sort={sort} />
-                      </span>
-                    </th>
+                      col={col.key}
+                      label={col.label}
+                      allProducts={localProducts}
+                      filter={columnFilters[col.key]}
+                      onApply={handleApplyFilter}
+                      onClear={handleClearFilter}
+                      align={col.align}
+                      className={col.align === "right" ? "text-right" : "text-left"}
+                    />
                   ))}
-                  <th className="px-4 py-3 text-right font-semibold text-slate-600">Status</th>
+                  <th className="bg-slate-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                    Status
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredProducts.map((product) => {
+              <tbody>
+                {filteredProducts.map((product, idx) => {
                   const cat = categories.find((c) => c.id === product.category_id);
                   const status = getStockStatus(product);
                   return (
                     <tr
                       key={product.id}
-                      className="hover:bg-slate-50 cursor-pointer transition-colors"
+                      className={cn(
+                        "cursor-pointer border-b border-slate-100 transition-colors",
+                        idx % 2 === 0 ? "bg-white" : "bg-slate-50/50",
+                        "hover:bg-blue-50/60"
+                      )}
                       onClick={() => setSelectedProduct(product)}
                       data-testid={`product-row-${product.id}`}
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         <div className="flex items-center gap-3">
                           <span className="text-lg">{product.image_placeholder}</span>
                           <div>
-                            <p className="font-medium text-slate-900">{product.name}</p>
-                            <p className="text-xs text-slate-400">{product.sku}</p>
+                            <p className="font-medium text-slate-900 whitespace-nowrap">{product.name}</p>
+                            <p className="text-xs text-slate-400 font-mono">{product.sku}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className="text-xs font-medium px-2 py-0.5 rounded whitespace-nowrap"
+                          style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}
+                        >
                           {cat?.icon} {cat?.name}
                         </span>
                       </td>
-                      <td className={cn("px-4 py-3 text-right font-bold", status === "out" ? "text-red-600" : status === "low" ? "text-amber-600" : "text-green-600")}>
+                      <td className={cn("px-4 py-2.5 text-right font-bold tabular-nums", status === "out" ? "text-red-600" : status === "low" ? "text-amber-600" : "text-slate-800")}>
                         {product.stock_quantity}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{product.primary_unit}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatPeso(product.cost_price)}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatPeso(product.selling_price)}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-2.5 text-slate-600 text-xs">{product.primary_unit}</td>
+                      <td className="px-4 py-2.5 text-right text-slate-600 tabular-nums">{formatPeso(product.cost_price)}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-slate-900 tabular-nums">{formatPeso(product.selling_price)}</td>
+                      <td className="px-4 py-2.5 text-right">
                         {status === "out" ? (
-                          <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-xs">Out of Stock</Badge>
+                          <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-xs whitespace-nowrap">Out of Stock</Badge>
                         ) : status === "low" ? (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-xs">Low Stock</Badge>
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-xs whitespace-nowrap">Low Stock</Badge>
                         ) : (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 shadow-none text-xs">In Stock</Badge>
+                          <Badge className="bg-green-100 text-green-700 border-green-200 shadow-none text-xs whitespace-nowrap">In Stock</Badge>
                         )}
                       </td>
                     </tr>
@@ -737,9 +1040,21 @@ export default function ProductsPage() {
                 })}
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
-                      <Package className="h-10 w-10 mx-auto text-slate-300 mb-2" />
-                      <p className="text-slate-500">No products found</p>
+                    <td colSpan={7} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <span className="text-5xl">🔍</span>
+                        <p className="text-base font-semibold text-slate-700">No results found</p>
+                        <p className="text-sm text-slate-400 max-w-xs">
+                          {anyFilterActive || searchQuery
+                            ? "Try adjusting your search or clearing column filters."
+                            : "No products in your catalog yet."}
+                        </p>
+                        {(anyFilterActive || searchQuery) && (
+                          <Button variant="outline" size="sm" onClick={() => { handleClearAll(); setSearchQuery(""); }} className="mt-1 text-xs">
+                            Clear All Filters
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -749,6 +1064,7 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Grid View */}
       {viewMode === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredProducts.map((product) => {
@@ -799,10 +1115,15 @@ export default function ProductsPage() {
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="col-span-full py-12 text-center bg-white rounded-xl border border-slate-200">
-              <Package className="h-12 w-12 mx-auto text-slate-300 mb-3" />
-              <h3 className="text-lg font-medium text-slate-900">No products found</h3>
-              <p className="text-slate-500">Try adjusting your search or filters.</p>
+            <div className="col-span-full py-16 text-center bg-white rounded-xl border border-slate-200 flex flex-col items-center gap-3">
+              <span className="text-5xl">🔍</span>
+              <p className="text-base font-semibold text-slate-700">No results found</p>
+              <p className="text-sm text-slate-400">Try adjusting your search or clearing column filters.</p>
+              {(anyFilterActive || searchQuery) && (
+                <Button variant="outline" size="sm" onClick={() => { handleClearAll(); setSearchQuery(""); }} className="mt-1 text-xs">
+                  Clear All Filters
+                </Button>
+              )}
             </div>
           )}
         </div>
