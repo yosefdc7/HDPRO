@@ -1,0 +1,75 @@
+Add PWA configuration, offline mode UI indicators, and final visual polish to Hardware Inventory Pro. NO backend work — this is all frontend.
+
+PWA SETUP:
+  - manifest.json: name "Hardware Inventory Pro", short_name "HW Inventory", theme_color #1E40AF, background_color #F8FAFC, display standalone, start_url /dashboard, orientation portrait-primary
+  - Icons: generate simple colored placeholder icons at 192x192 and 512x512 (solid blue square with white "HW" text, rounded corners)
+  - Add meta tags in layout: theme-color, apple-mobile-web-app-capable, viewport with user-scalable=no
+  - Register a basic service worker that caches the app shell (all static assets) for offline access
+  - Add install prompt: when PWA install event fires, show a dismissible banner at bottom: "📱 Add to Home Screen for the best experience" with "Install" and "Maybe Later" buttons. Save dismissal to localStorage so it doesn't show again.
+
+OFFLINE MODE UI (simulate with a toggle):
+  Add a hidden developer toggle in the "More" page: "🔧 Simulate Offline Mode" switch
+  
+  When toggled ON:
+  - Show a persistent yellow banner below the header on all pages: "📴 You're offline — changes will sync when reconnected" with a pulsing yellow dot
+  - Change header status dot from green to gray
+  - All pages still work (showing cached/mock data)
+  - Any "save" action shows modified toast: "💾 Saved locally — will sync when online"
+  - Disable BIR CSV download button (gray out, tooltip: "Requires internet connection")
+  - Disable "Simulate Scan" on barcode page (gray out)
+  
+  When toggled OFF:
+  - Show brief blue banner "🔄 Syncing..." for 2 seconds with a spinner animation
+  - Then green banner "✅ All changes synced!" for 2 seconds, then dismiss
+  - Restore normal header green status dot
+
+HEADER STATUS INDICATOR:
+  Small dot in the header bar next to the user avatar:
+  - Green dot with subtle pulse: Online
+  - Yellow dot with fast pulse: Syncing
+  - Gray dot: Offline
+
+UI POLISH — Apply all of the following:
+
+  1. Page transitions: fade-in animation (opacity 0→1, translateY 8→0) on every page mount, duration-300
+  
+  2. Skeleton loading: On every page, show skeleton shimmer placeholders matching the shape of real content (card skeletons, row skeletons, circle avatar skeletons) for 800ms before rendering real data. Use animated gradient shimmer effect (gray-200 → gray-100 sweep).
+  
+  3. Pull-to-refresh: On mobile, add pull-down gesture on Dashboard, Products, and Movements pages. Show a spinner and "Refreshing..." text. After 1 second, re-render the data. Use touch event handling.
+  
+  4. Toast notification system: Toasts slide in from top-right (desktop) or top-center (mobile). Types: success (green, ✅), error (red, ❌), warning (amber, ⚠️), info (blue, ℹ️). Auto-dismiss after 3 seconds. Queue multiple toasts vertically. Include close X button.
+  
+  5. Empty states: For any list that could be empty, show a centered illustration area with: relevant emoji (large, 48px), title text, description text, and a CTA button. Examples:
+     - Products: "📦 No products yet" / "Add your first hardware item to get started" / "＋ Add Product"
+     - Movements: "🔄 No movements recorded" / "Record your first stock movement" / "＋ Record Movement"
+     - Search no results: "🔍 No results found" / "Try a different search term or filter"
+  
+  6. Currency formatting: All peso amounts use: ₱ prefix, comma thousands separator, 2 decimal places. Use a shared formatPeso() utility function.
+  
+  7. Date formatting: Use relative time for recent ("Just now", "2h ago", "Yesterday"), absolute for older ("Apr 3, 2026"). Use a shared formatDate() utility function.
+  
+  8. Button interactions: All buttons have hover:brightness-110, active:scale-95 transform, transition-all duration-150. Primary buttons have subtle shadow, hover shadow-md.
+  
+  9. Mobile optimizations:
+     - All touch targets minimum 44x44px
+     - Bottom sheet modals slide up with backdrop blur, drag-to-dismiss handle bar at top
+     - Floating Action Button (FAB) on Products and Movements pages: fixed bottom-right (above tab bar), circular, primary blue, white + icon, shadow-lg, tap opens the respective Add modal. Hide FAB when modal is open.
+     - Safe area padding: padding-bottom for iOS home indicator on bottom tab bar
+     - Inputs: prevent zoom on focus with font-size 16px minimum
+  
+  10. Responsive breakpoints:
+      - Mobile: < 640px (1 column cards, bottom tabs, bottom sheets)
+      - Tablet: 640–1024px (2 column cards, bottom tabs, centered modals)
+      - Desktop: > 1024px (sidebar nav, 3-4 column cards, slide-overs, full tables)
+  
+  11. Micro-interactions:
+      - Star/favorite toggle on product cards: scale bounce animation on click
+      - Stock badge color transitions when stock changes
+      - Number count-up animation on dashboard summary cards (0 → target number over 500ms)
+      - Smooth accordion expand/collapse on FAQ items and movement detail expansion
+  
+  12. 404 page: Fun "🔧 Page Not Found" with message "Looks like this aisle doesn't exist" and "Go to Dashboard" button
+  
+  13. Scrolling: All list pages scroll smoothly. Sticky headers (page title, filter bars) on scroll. Show subtle shadow on sticky header when scrolled.
+  
+  14. Dark mode: DO NOT implement dark mode — keep light theme only for simplicity.
