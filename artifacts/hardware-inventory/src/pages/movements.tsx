@@ -36,6 +36,12 @@ import {
 } from "@/lib/store";
 import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
 import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { productConversionContext } from "@/lib/product-conversion-context";
+import {
+  convertToBaseUnit,
+  ConversionError,
+  type UnitId,
+} from "@workspace/inventory-units";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -207,9 +213,15 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
 
   const conversionPreview = useMemo(() => {
     if (!selectedProduct || selectedUnit === selectedProduct.primary_unit) return null;
-    const conv = productConversions.find((c) => c.from_unit === selectedUnit);
-    if (!conv) return null;
-    return { converted: quantity * conv.factor, to_unit: conv.to_unit };
+    if (!Number.isInteger(quantity)) return null;
+    const ctx = productConversionContext(selectedProduct, productConversions);
+    try {
+      const converted = convertToBaseUnit(quantity, selectedUnit as UnitId, ctx);
+      return { converted, to_unit: selectedProduct.primary_unit };
+    } catch (e) {
+      if (e instanceof ConversionError) return null;
+      throw e;
+    }
   }, [selectedProduct, selectedUnit, quantity, productConversions]);
 
   const unitOptions = useMemo(() => {
@@ -230,6 +242,20 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
       }
     } else if (quantity <= 0) {
       setQtyError("Quantity must be greater than 0");
+      return;
+    }
+    if (!Number.isInteger(quantity)) {
+      setQtyError("Quantity must be a whole number");
+      return;
+    }
+    if (
+      selectedProduct &&
+      selectedUnit !== selectedProduct.primary_unit &&
+      conversionPreview === null
+    ) {
+      setQtyError(
+        `No conversion from "${selectedUnit}" to ${selectedProduct.primary_unit}`,
+      );
       return;
     }
     if (MOVEMENT_UI_META[movementType].direction === "out" && selectedProduct) {

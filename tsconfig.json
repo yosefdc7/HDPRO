@@ -4,6 +4,12 @@
   "files": [],
   "references": [
     {
+      "path": "./lib/inventory-units"
+    },
+    {
+      "path": "./lib/stock-engine"
+    },
+    {
       "path": "./lib/db"
     },
     {
