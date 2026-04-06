@@ -8,9 +8,89 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Get all products
+ */
+export const GetProductsResponseItem = zod.object({
+  id: zod.string(),
+  sku: zod.string(),
+  barcode: zod.string().optional(),
+  name: zod.string(),
+  primaryUnit: zod.string(),
+  stockQuantity: zod.number(),
+  lowStockThreshold: zod.number().optional(),
+  criticalStockThreshold: zod.number().optional(),
+  targetStockLevel: zod.number().optional(),
+  costPrice: zod.string().optional(),
+  sellingPrice: zod.string(),
+});
+export const GetProductsResponse = zod.array(GetProductsResponseItem);
+
+/**
+ * @summary Get movement history
+ */
+export const GetMovementsResponseItem = zod.object({
+  id: zod.string(),
+  productId: zod.string(),
+  type: zod.enum([
+    "IN",
+    "OUT",
+    "ADJUSTMENT",
+    "DELIVERY",
+    "DAMAGE",
+    "RETURN",
+    "TRANSFER",
+  ]),
+  quantity: zod.number(),
+  unit: zod.string(),
+  notes: zod.string().optional(),
+  capturedAt: zod.string(),
+});
+export const GetMovementsResponse = zod.array(GetMovementsResponseItem);
+
+/**
+ * @summary Get all unresolved sync conflicts
+ */
+export const GetConflictsResponseItem = zod.object({
+  conflictId: zod.string(),
+  entity: zod.string(),
+  mobilePayload: zod.object({}).passthrough(),
+  serverVersion: zod.object({}).passthrough(),
+});
+export const GetConflictsResponse = zod.array(GetConflictsResponseItem);
+
+/**
+ * @summary Admin resolves a data conflict
+ */
+export const ResolveConflictParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ResolveConflictBody = zod.object({
+  resolution: zod.enum(["accept_mobile", "keep_server"]),
+});
+
+/**
+ * @summary Mobile app pushes batched offline mutations
+ */
+export const PushSyncQueueBodyItem = zod.object({
+  id: zod.string(),
+  entity: zod.enum(["product", "movement"]),
+  action: zod.enum(["create", "update"]),
+  payload: zod.object({}).passthrough(),
+  capturedAt: zod.string(),
+});
+export const PushSyncQueueBody = zod.array(PushSyncQueueBodyItem);
+
+export const PushSyncQueueResponseItem = zod.object({
+  id: zod.string(),
+  status: zod.enum(["success", "conflict", "error"]),
+  serverTimestamp: zod.string().optional(),
+});
+export const PushSyncQueueResponse = zod.array(PushSyncQueueResponseItem);

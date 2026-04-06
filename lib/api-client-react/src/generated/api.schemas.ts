@@ -8,3 +8,103 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface Product {
+  id: string;
+  sku: string;
+  barcode?: string;
+  name: string;
+  primaryUnit: string;
+  stockQuantity: number;
+  lowStockThreshold?: number;
+  criticalStockThreshold?: number;
+  targetStockLevel?: number;
+  costPrice?: string;
+  sellingPrice: string;
+}
+
+export type MovementType = (typeof MovementType)[keyof typeof MovementType];
+
+export const MovementType = {
+  IN: "IN",
+  OUT: "OUT",
+  ADJUSTMENT: "ADJUSTMENT",
+  DELIVERY: "DELIVERY",
+  DAMAGE: "DAMAGE",
+  RETURN: "RETURN",
+  TRANSFER: "TRANSFER",
+} as const;
+
+export interface Movement {
+  id: string;
+  productId: string;
+  type: MovementType;
+  quantity: number;
+  unit: string;
+  notes?: string;
+  capturedAt: string;
+}
+
+export type SyncPayloadEntity =
+  (typeof SyncPayloadEntity)[keyof typeof SyncPayloadEntity];
+
+export const SyncPayloadEntity = {
+  product: "product",
+  movement: "movement",
+} as const;
+
+export type SyncPayloadAction =
+  (typeof SyncPayloadAction)[keyof typeof SyncPayloadAction];
+
+export const SyncPayloadAction = {
+  create: "create",
+  update: "update",
+} as const;
+
+export type SyncPayloadPayload = { [key: string]: unknown };
+
+export interface SyncPayload {
+  id: string;
+  entity: SyncPayloadEntity;
+  action: SyncPayloadAction;
+  payload: SyncPayloadPayload;
+  capturedAt: string;
+}
+
+export type SyncResultStatus =
+  (typeof SyncResultStatus)[keyof typeof SyncResultStatus];
+
+export const SyncResultStatus = {
+  success: "success",
+  conflict: "conflict",
+  error: "error",
+} as const;
+
+export interface SyncResult {
+  id: string;
+  status: SyncResultStatus;
+  serverTimestamp?: string;
+}
+
+export type ConflictItemMobilePayload = { [key: string]: unknown };
+
+export type ConflictItemServerVersion = { [key: string]: unknown };
+
+export interface ConflictItem {
+  conflictId: string;
+  entity: string;
+  mobilePayload: ConflictItemMobilePayload;
+  serverVersion: ConflictItemServerVersion;
+}
+
+export type ResolveConflictBodyResolution =
+  (typeof ResolveConflictBodyResolution)[keyof typeof ResolveConflictBodyResolution];
+
+export const ResolveConflictBodyResolution = {
+  accept_mobile: "accept_mobile",
+  keep_server: "keep_server",
+} as const;
+
+export type ResolveConflictBody = {
+  resolution: ResolveConflictBodyResolution;
+};

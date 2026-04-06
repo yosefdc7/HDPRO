@@ -6,4 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./conflictItem";
+export * from "./conflictItemMobilePayload";
+export * from "./conflictItemServerVersion";
 export * from "./healthStatus";
+export * from "./movement";
+export * from "./movementType";
+export * from "./product";
+export * from "./resolveConflictBody";
+export * from "./resolveConflictBodyResolution";
+export * from "./syncPayload";
+export * from "./syncPayloadAction";
+export * from "./syncPayloadEntity";
+export * from "./syncPayloadPayload";
+export * from "./syncResult";
+export * from "./syncResultStatus";

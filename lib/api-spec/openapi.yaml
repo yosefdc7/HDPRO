@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,13 +9,18 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: products
+    description: Product catalog and stock quantities
+  - name: movements
+    description: Inventory in, out, and adjustments
+  - name: sync
+    description: Offline synchronization and conflicts
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +28,101 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+                
+  /products:
+    get:
+      operationId: getProducts
+      tags: [products]
+      summary: Get all products
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+                  
+  /movements:
+    get:
+      operationId: getMovements
+      tags: [movements]
+      summary: Get movement history
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Movement"
+                  
+  /sync/conflicts:
+    get:
+      operationId: getConflicts
+      tags: [sync]
+      summary: Get all unresolved sync conflicts
+      responses:
+        "200":
+          description: Unresolved conflicts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConflictItem"
+  
+  /sync/conflicts/{id}/resolve:
+    post:
+      operationId: resolveConflict
+      tags: [sync]
+      summary: Admin resolves a data conflict
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution:
+                  type: string
+                  enum: [accept_mobile, keep_server]
+              required: [resolution]
+      responses:
+        "200":
+          description: Conflict resolved successfully
+          
+  /sync/push:
+    post:
+      operationId: pushSyncQueue
+      tags: [sync]
+      summary: Mobile app pushes batched offline mutations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/SyncPayload"
+      responses:
+        "200":
+          description: Sync results array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncResult"
+                
 components:
   schemas:
     HealthStatus:
@@ -33,4 +132,58 @@ components:
           type: string
       required:
         - status
+        
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        sku: { type: string }
+        barcode: { type: string }
+        name: { type: string }
+        primaryUnit: { type: string }
+        stockQuantity: { type: number }
+        lowStockThreshold: { type: number }
+        criticalStockThreshold: { type: number }
+        targetStockLevel: { type: number }
+        costPrice: { type: string }
+        sellingPrice: { type: string }
+      required: [id, sku, name, primaryUnit, stockQuantity, sellingPrice]
 
+    Movement:
+      type: object
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        type: { type: string, enum: [IN, OUT, ADJUSTMENT, DELIVERY, DAMAGE, RETURN, TRANSFER] }
+        quantity: { type: number }
+        unit: { type: string }
+        notes: { type: string }
+        capturedAt: { type: string }
+      required: [id, productId, type, quantity, unit, capturedAt]
+      
+    SyncPayload:
+      type: object
+      properties:
+        id: { type: string } # local uuid
+        entity: { type: string, enum: [product, movement] }
+        action: { type: string, enum: [create, update] }
+        payload: { type: object }
+        capturedAt: { type: string }
+      required: [id, entity, action, payload, capturedAt]
+      
+    SyncResult:
+      type: object
+      properties:
+        id: { type: string } # matching the local uuid
+        status: { type: string, enum: [success, conflict, error] }
+        serverTimestamp: { type: string }
+      required: [id, status]
+      
+    ConflictItem:
+      type: object
+      properties:
+        conflictId: { type: string }
+        entity: { type: string }
+        mobilePayload: { type: object }
+        serverVersion: { type: object }
+      required: [conflictId, entity, mobilePayload, serverVersion]

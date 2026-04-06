@@ -5,18 +5,29 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ConflictItem,
+  HealthStatus,
+  Movement,
+  Product,
+  ResolveConflictBody,
+  SyncPayload,
+  SyncResult,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -25,7 +36,6 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const getHealthCheckUrl = () => {
@@ -99,3 +109,401 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get all products
+ */
+export const getGetProductsUrl = () => {
+  return `/api/products`;
+};
+
+export const getProducts = async (
+  options?: RequestInit,
+): Promise<Product[]> => {
+  return customFetch<Product[]>(getGetProductsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProductsQueryKey = () => {
+  return [`/api/products`] as const;
+};
+
+export const getGetProductsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProducts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProducts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProductsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProducts>>> = ({
+    signal,
+  }) => getProducts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProducts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProductsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProducts>>
+>;
+export type GetProductsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all products
+ */
+
+export function useGetProducts<
+  TData = Awaited<ReturnType<typeof getProducts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProducts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProductsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get movement history
+ */
+export const getGetMovementsUrl = () => {
+  return `/api/movements`;
+};
+
+export const getMovements = async (
+  options?: RequestInit,
+): Promise<Movement[]> => {
+  return customFetch<Movement[]>(getGetMovementsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMovementsQueryKey = () => {
+  return [`/api/movements`] as const;
+};
+
+export const getGetMovementsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMovements>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMovements>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMovementsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMovements>>> = ({
+    signal,
+  }) => getMovements({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMovements>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMovementsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMovements>>
+>;
+export type GetMovementsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get movement history
+ */
+
+export function useGetMovements<
+  TData = Awaited<ReturnType<typeof getMovements>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMovements>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMovementsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get all unresolved sync conflicts
+ */
+export const getGetConflictsUrl = () => {
+  return `/api/sync/conflicts`;
+};
+
+export const getConflicts = async (
+  options?: RequestInit,
+): Promise<ConflictItem[]> => {
+  return customFetch<ConflictItem[]>(getGetConflictsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetConflictsQueryKey = () => {
+  return [`/api/sync/conflicts`] as const;
+};
+
+export const getGetConflictsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConflicts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConflicts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetConflictsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getConflicts>>> = ({
+    signal,
+  }) => getConflicts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConflicts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetConflictsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getConflicts>>
+>;
+export type GetConflictsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all unresolved sync conflicts
+ */
+
+export function useGetConflicts<
+  TData = Awaited<ReturnType<typeof getConflicts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getConflicts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetConflictsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Admin resolves a data conflict
+ */
+export const getResolveConflictUrl = (id: string) => {
+  return `/api/sync/conflicts/${id}/resolve`;
+};
+
+export const resolveConflict = async (
+  id: string,
+  resolveConflictBody: ResolveConflictBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getResolveConflictUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(resolveConflictBody),
+  });
+};
+
+export const getResolveConflictMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveConflict>>,
+    TError,
+    { id: string; data: BodyType<ResolveConflictBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resolveConflict>>,
+  TError,
+  { id: string; data: BodyType<ResolveConflictBody> },
+  TContext
+> => {
+  const mutationKey = ["resolveConflict"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resolveConflict>>,
+    { id: string; data: BodyType<ResolveConflictBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return resolveConflict(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResolveConflictMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resolveConflict>>
+>;
+export type ResolveConflictMutationBody = BodyType<ResolveConflictBody>;
+export type ResolveConflictMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin resolves a data conflict
+ */
+export const useResolveConflict = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveConflict>>,
+    TError,
+    { id: string; data: BodyType<ResolveConflictBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resolveConflict>>,
+  TError,
+  { id: string; data: BodyType<ResolveConflictBody> },
+  TContext
+> => {
+  return useMutation(getResolveConflictMutationOptions(options));
+};
+
+/**
+ * @summary Mobile app pushes batched offline mutations
+ */
+export const getPushSyncQueueUrl = () => {
+  return `/api/sync/push`;
+};
+
+export const pushSyncQueue = async (
+  syncPayload: SyncPayload[],
+  options?: RequestInit,
+): Promise<SyncResult[]> => {
+  return customFetch<SyncResult[]>(getPushSyncQueueUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(syncPayload),
+  });
+};
+
+export const getPushSyncQueueMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pushSyncQueue>>,
+    TError,
+    { data: BodyType<SyncPayload[]> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof pushSyncQueue>>,
+  TError,
+  { data: BodyType<SyncPayload[]> },
+  TContext
+> => {
+  const mutationKey = ["pushSyncQueue"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof pushSyncQueue>>,
+    { data: BodyType<SyncPayload[]> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return pushSyncQueue(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PushSyncQueueMutationResult = NonNullable<
+  Awaited<ReturnType<typeof pushSyncQueue>>
+>;
+export type PushSyncQueueMutationBody = BodyType<SyncPayload[]>;
+export type PushSyncQueueMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mobile app pushes batched offline mutations
+ */
+export const usePushSyncQueue = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pushSyncQueue>>,
+    TError,
+    { data: BodyType<SyncPayload[]> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof pushSyncQueue>>,
+  TError,
+  { data: BodyType<SyncPayload[]> },
+  TContext
+> => {
+  return useMutation(getPushSyncQueueMutationOptions(options));
+};
