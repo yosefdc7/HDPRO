@@ -226,6 +226,13 @@ export async function patchPurchaseOrder(
     throw new ReceivingError("No updates provided", "NO_OP");
   }
 
+  if (input.status === "received" || input.status === "partially_received") {
+    throw new ReceivingError(
+      "Receipt status is updated automatically when deliveries are posted",
+      "INVALID_STATUS_TRANSITION",
+    );
+  }
+
   const poRows = await db
     .select()
     .from(purchaseOrdersTable)
@@ -282,22 +289,33 @@ export async function createDelivery(raw: z.infer<typeof createDeliveryBodySchem
     }
   }
 
-  const [d] = await db
-    .insert(deliveriesTable)
-    .values({
-      deliveryNumber: input.deliveryNumber,
-      supplierId: input.supplierId,
-      purchaseOrderId: input.purchaseOrderId ?? null,
-      status: "draft",
-      receivedAt: input.receivedAt,
-      receivedByUserId: input.receivedByUserId ?? null,
-      notes: input.notes ?? null,
-      updatedAt: new Date(),
-    })
-    .returning();
+  try {
+    const [d] = await db
+      .insert(deliveriesTable)
+      .values({
+        deliveryNumber: input.deliveryNumber,
+        supplierId: input.supplierId,
+        purchaseOrderId: input.purchaseOrderId ?? null,
+        status: "draft",
+        receivedAt: input.receivedAt,
+        receivedByUserId: input.receivedByUserId ?? null,
+        notes: input.notes ?? null,
+        updatedAt: new Date(),
+      })
+      .returning();
 
-  if (!d) throw new ReceivingError("Delivery insert failed", "INSERT_ERROR", 500);
-  return d;
+    if (!d) throw new ReceivingError("Delivery insert failed", "INSERT_ERROR", 500);
+    return d;
+  } catch (err: unknown) {
+    if (isUniqueViolation(err)) {
+      throw new ReceivingError(
+        "Delivery number already exists",
+        "DUPLICATE_DELIVERY",
+        409,
+      );
+    }
+    throw err;
+  }
 }
 
 export async function getDelivery(deliveryId: string) {
