@@ -1,23 +1,48 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRoute, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, AlertTriangle, CheckCircle, Package, ArrowUpDown, Tag, DollarSign, Layers } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle, Package, ArrowUpDown, Tag, DollarSign, Layers, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { products, categories, unitConversions, stockMovements } from "@/lib/mock-data";
+import { categories } from "@/lib/mock-data";
+import {
+  getConversions,
+  getMovements,
+  getProducts,
+  type Movement,
+  type Product,
+  type UnitConversion,
+} from "@/lib/store";
+import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
 import { formatPeso, formatDate, cn } from "@/lib/utils";
 
 export default function ProductDetailPage() {
   const [, params] = useRoute("/products/:id");
   const [, setLocation] = useLocation();
   const productId = params?.id;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [unitConversions, setUnitConversions] = useState<UnitConversion[]>([]);
+  const [stockMovements, setStockMovements] = useState<Movement[]>([]);
 
-  const product = useMemo(() => products.find(p => p.id === productId), [productId]);
+  useEffect(() => {
+    setProducts(getProducts());
+    setUnitConversions(getConversions());
+    setStockMovements(getMovements());
+  }, [productId]);
+
+  const product = useMemo(() => products.find(p => p.id === productId), [products, productId]);
   const category = useMemo(() => categories.find(c => c.id === product?.category_id), [product]);
-  const conversions = useMemo(() => unitConversions.filter(uc => uc.product_id === productId), [productId]);
-  const movements = useMemo(() => stockMovements.filter(sm => sm.product_id === productId).slice(0, 10), [productId]);
+  const conversions = useMemo(
+    () => unitConversions.filter((uc) => uc.product_id === productId),
+    [unitConversions, productId],
+  );
+  const movements = useMemo(
+    () => stockMovements.filter((sm) => sm.product_id === productId).slice(0, 10),
+    [stockMovements, productId],
+  );
 
   if (!product) {
     return (
@@ -28,9 +53,34 @@ export default function ProductDetailPage() {
     );
   }
 
-  const isOutOfStock = product.stock_quantity === 0;
-  const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= product.reorder_level;
-  const markup = ((product.selling_price - product.cost_price) / product.cost_price * 100).toFixed(1);
+  const insight = getProductInventoryInsight(product);
+  const stockBadgeClass =
+    insight.health === "critical"
+      ? "bg-red-100 text-red-700 hover:bg-red-200 border border-red-200"
+      : insight.health === "low"
+      ? "bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200"
+      : insight.health === "overstock"
+      ? "bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200"
+      : "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200";
+  const stockValueClass =
+    insight.health === "critical"
+      ? "text-red-600"
+      : insight.health === "low"
+      ? "text-amber-600"
+      : insight.health === "overstock"
+      ? "text-violet-600"
+      : "text-green-600";
+  const stockFillClass =
+    insight.health === "critical"
+      ? "bg-red-500"
+      : insight.health === "low"
+      ? "bg-amber-500"
+      : insight.health === "overstock"
+      ? "bg-violet-500"
+      : "bg-green-500";
+  const markup = product.cost_price > 0
+    ? (((product.selling_price - product.cost_price) / product.cost_price) * 100).toFixed(1)
+    : "0.0";
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
@@ -87,46 +137,44 @@ export default function ProductDetailPage() {
                   <div className="flex items-baseline gap-2">
                     <span className={cn(
                       "text-5xl font-bold",
-                      isOutOfStock ? "text-red-600" : isLowStock ? "text-amber-600" : "text-green-600"
+                      stockValueClass
                     )}>
-                      {product.stock_quantity}
+                      {insight.onHandQuantity}
                     </span>
                     <span className="text-xl text-slate-500 font-medium">{product.primary_unit}s</span>
                   </div>
                 </div>
                 
                 <div className="text-right">
-                  {isOutOfStock ? (
-                    <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border border-red-200 px-3 py-1.5 text-sm gap-1.5">
-                      <AlertTriangle className="h-4 w-4" /> Out of Stock
-                    </Badge>
-                  ) : isLowStock ? (
-                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200 px-3 py-1.5 text-sm gap-1.5">
-                      <AlertTriangle className="h-4 w-4" /> Low Stock
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border border-green-200 px-3 py-1.5 text-sm gap-1.5">
-                      <CheckCircle className="h-4 w-4" /> Healthy Stock
-                    </Badge>
-                  )}
-                  <p className="text-sm text-slate-500 mt-2">Reorder level: <span className="font-bold text-slate-700">{product.reorder_level}</span></p>
+                  <Badge className={cn(stockBadgeClass, "px-3 py-1.5 text-sm gap-1.5")}>
+                    {insight.health === "healthy" ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4" />
+                    )}
+                    {insight.healthLabel}
+                  </Badge>
+                  <p className="text-sm text-slate-500 mt-2">
+                    Reorder point:{" "}
+                    <span className="font-bold text-slate-700">{insight.reorderPoint}</span>
+                  </p>
                 </div>
               </div>
 
               {/* Visual Stock Indicator */}
               <div className="space-y-2">
                 <div className="flex justify-between text-xs text-slate-500 font-medium">
-                  <span>0</span>
-                  <span>{product.reorder_level}</span>
-                  <span>Healthy</span>
+                  <span>Critical ≤ {insight.criticalLevel}</span>
+                  <span>Reorder ≤ {insight.reorderPoint}</span>
+                  <span>Overstock ≥ {insight.overstockLevel}</span>
                 </div>
                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
                   <div 
                     className={cn(
                       "h-full transition-all duration-500",
-                      isOutOfStock ? "w-0" : isLowStock ? "bg-amber-500" : "bg-green-500"
+                      stockFillClass
                     )} 
-                    style={{ width: `${Math.min(100, Math.max(0, (product.stock_quantity / (product.reorder_level * 3)) * 100))}%` }}
+                    style={{ width: `${Math.min(100, Math.max(0, (insight.onHandQuantity / Math.max(1, insight.overstockLevel)) * 100))}%` }}
                   />
                 </div>
               </div>
@@ -150,9 +198,9 @@ export default function ProductDetailPage() {
                     <div key={movement.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          {movement.type === 'in' ? <Badge className="bg-green-600">IN</Badge> : 
-                           movement.type === 'out' ? <Badge className="bg-blue-600">OUT</Badge> : 
-                           <Badge className="bg-amber-500 text-white">ADJ</Badge>}
+                          <Badge className={cn(MOVEMENT_UI_META[movement.type].badgeClass, "border text-xs")}>
+                            {MOVEMENT_UI_META[movement.type].shortLabel}
+                          </Badge>
                           <span className="text-sm font-medium text-slate-700">{formatDate(movement.timestamp)}</span>
                         </div>
                         <p className="text-sm text-slate-900">{movement.note}</p>
@@ -160,10 +208,9 @@ export default function ProductDetailPage() {
                       </div>
                       <div className={cn(
                         "font-bold text-lg",
-                        movement.type === 'out' ? "text-blue-600" : 
-                        movement.type === 'in' ? "text-green-600" : "text-amber-600"
+                        MOVEMENT_UI_META[movement.type].textClass
                       )}>
-                        {movement.type === 'out' ? '-' : '+'}{movement.quantity}
+                        {getMovementDisplaySign(movement.type)}{Math.abs(movement.quantity)}
                         <span className="text-xs ml-1 font-normal opacity-70">{movement.unit}</span>
                       </div>
                     </div>
@@ -250,6 +297,37 @@ export default function ProductDetailPage() {
                   {markup}%
                 </Badge>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl shadow-sm border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" /> Reorder Guidance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-2 space-y-3">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between">
+                <span className="text-sm text-slate-600">Incoming stock</span>
+                <span className="font-bold text-slate-900">
+                  {insight.incomingQuantity} {product.primary_unit}
+                </span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between">
+                <span className="text-sm text-slate-600">Target stock level</span>
+                <span className="font-bold text-slate-900">
+                  {insight.targetLevel} {product.primary_unit}
+                </span>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
+                <span className="text-sm text-blue-800">Suggested reorder</span>
+                <span className="font-bold text-blue-700">
+                  {insight.reorderQuantity} {product.primary_unit}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Suggested reorder uses <span className="font-semibold">on-hand + incoming</span> against target stock.
+              </p>
             </CardContent>
           </Card>
         </div>

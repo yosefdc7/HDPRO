@@ -14,6 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { categories, currentUser } from "@/lib/mock-data";
 import { getProducts, getMovements, type Product, type Movement } from "@/lib/store";
+import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
 import { formatPeso, cn } from "@/lib/utils";
 import PullToRefresh from "@/components/layout/pull-to-refresh";
 
@@ -102,22 +104,31 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const totalProducts = products.length;
-    const lowStock = products.filter(
-      (p) => p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level
+    const criticalStock = products.filter(
+      (p) => getProductInventoryInsight(p).health === "critical"
     );
-    const outOfStock = products.filter((p) => p.stock_quantity === 0);
+    const lowStock = products.filter(
+      (p) => getProductInventoryInsight(p).health === "low"
+    );
+    const overstock = products.filter(
+      (p) => getProductInventoryInsight(p).health === "overstock"
+    );
     const todayMovements = movements.filter((m) => isToday(m.timestamp));
     const inventoryValue = products.reduce(
       (sum, p) => sum + p.stock_quantity * p.cost_price,
       0
     );
-    return { totalProducts, lowStock, outOfStock, todayMovements, inventoryValue };
+    return { totalProducts, criticalStock, lowStock, overstock, todayMovements, inventoryValue };
   }, [products, movements]);
 
   const needsRestock = useMemo(() => {
     return [...products]
-      .filter((p) => p.stock_quantity <= p.reorder_level)
-      .sort((a, b) => a.stock_quantity - b.stock_quantity)
+      .filter((p) => getProductInventoryInsight(p).reorderQuantity > 0)
+      .sort(
+        (a, b) =>
+          getProductInventoryInsight(b).reorderQuantity -
+          getProductInventoryInsight(a).reorderQuantity
+      )
       .slice(0, 5);
   }, [products]);
 
@@ -140,7 +151,7 @@ export default function DashboardPage() {
 
   const totalInventoryValue = categoryValues.reduce((sum, c) => sum + c.value, 0) || 1;
 
-  const alertCount = stats.lowStock.length + stats.outOfStock.length;
+  const alertCount = stats.criticalStock.length + stats.lowStock.length;
 
   const statCards = [
     {
@@ -157,7 +168,7 @@ export default function DashboardPage() {
       icon: <AlertTriangle className="h-6 w-6" />,
       iconBg: "bg-red-50 text-red-600",
       valueColor: alertCount > 0 ? "text-red-600" : "text-green-600",
-      badge: alertCount > 0 ? `${stats.outOfStock.length} out · ${stats.lowStock.length} low` : "All stocked",
+      badge: alertCount > 0 ? `${stats.criticalStock.length} critical · ${stats.lowStock.length} low` : "All stocked",
     },
     {
       label: "Today's Movements",
@@ -295,13 +306,11 @@ export default function DashboardPage() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {needsRestock.map((product) => {
-                    const isOut = product.stock_quantity === 0;
-                    const pct = isOut
-                      ? 0
-                      : Math.min(
-                          100,
-                          (product.stock_quantity / product.reorder_level) * 100
-                        );
+                    const insight = getProductInventoryInsight(product);
+                    const isCritical = insight.health === "critical";
+                    const pct = insight.reorderPoint === 0
+                      ? 100
+                      : Math.min(100, (insight.availableSoonQuantity / insight.reorderPoint) * 100);
                     return (
                       <div
                         key={product.id}
@@ -322,9 +331,9 @@ export default function DashboardPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            {isOut ? (
+                            {isCritical ? (
                               <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-xs">
-                                Out of Stock
+                                Critical
                               </Badge>
                             ) : (
                               <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-xs">
@@ -332,8 +341,11 @@ export default function DashboardPage() {
                               </Badge>
                             )}
                             <p className="text-xs text-slate-500 mt-1">
-                              {product.stock_quantity} / {product.reorder_level}{" "}
+                              {insight.availableSoonQuantity} / {insight.reorderPoint}{" "}
                               {product.primary_unit}
+                            </p>
+                            <p className="text-[11px] text-blue-600 font-semibold mt-0.5">
+                              Reorder: {insight.reorderQuantity} {product.primary_unit}
                             </p>
                           </div>
                         </div>
@@ -341,7 +353,7 @@ export default function DashboardPage() {
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-700",
-                              isOut ? "w-0" : pct < 50 ? "bg-red-500" : "bg-amber-400"
+                              isCritical ? "bg-red-500" : "bg-amber-400"
                             )}
                             style={{ width: `${pct}%` }}
                           />
@@ -373,8 +385,9 @@ export default function DashboardPage() {
             <CardContent className="p-0">
               <div className="divide-y divide-slate-100">
                 {recentActivity.map((movement) => {
-                  const isIn = movement.type === "in";
-                  const isAdj = movement.type === "adjustment";
+                  const movementMeta = MOVEMENT_UI_META[movement.type];
+                  const isInbound = movementMeta.direction === "in";
+                  const isNeutral = movementMeta.direction === "neutral";
                   return (
                     <div
                       key={movement.id}
@@ -384,16 +397,12 @@ export default function DashboardPage() {
                       <div
                         className={cn(
                           "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center",
-                          isIn
-                            ? "bg-green-100 text-green-600"
-                            : isAdj
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-red-100 text-red-600"
+                          movementMeta.iconBgClass
                         )}
                       >
-                        {isIn ? (
+                        {isInbound ? (
                           <ArrowUpCircle className="h-5 w-5" />
-                        ) : isAdj ? (
+                        ) : isNeutral ? (
                           <RefreshCw className="h-4 w-4" />
                         ) : (
                           <ArrowDownCircle className="h-5 w-5" />
@@ -408,17 +417,8 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p
-                          className={cn(
-                            "text-sm font-bold",
-                            isIn
-                              ? "text-green-600"
-                              : isAdj
-                              ? "text-blue-600"
-                              : "text-red-600"
-                          )}
-                        >
-                          {isIn ? "+" : isAdj ? "±" : "-"}
+                        <p className={cn("text-sm font-bold", movementMeta.textClass)}>
+                          {getMovementDisplaySign(movement.type)}
                           {Math.abs(movement.quantity)} {movement.unit}
                         </p>
                         <p className="text-xs text-slate-400 mt-0.5">

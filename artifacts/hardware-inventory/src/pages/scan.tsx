@@ -17,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useOffline } from "@/lib/offline-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getProductInventoryInsight } from "@/lib/inventory-insights";
 
 function StockActionModal({
   open,
@@ -100,8 +101,31 @@ function ProductResultCard({
 }) {
   const [, navigate] = useLocation();
   const cat = categories.find((c) => c.id === product.category_id);
-  const isOut = product.stock_quantity === 0;
-  const isLow = product.stock_quantity > 0 && product.stock_quantity <= product.reorder_level;
+  const insight = getProductInventoryInsight(product);
+  const stockClass =
+    insight.health === "critical"
+      ? "text-red-600"
+      : insight.health === "low"
+      ? "text-amber-600"
+      : insight.health === "overstock"
+      ? "text-violet-600"
+      : "text-green-600";
+  const badgeClass =
+    insight.health === "critical"
+      ? "text-xs bg-red-100 text-red-700 border-red-200 shadow-none"
+      : insight.health === "low"
+      ? "text-xs bg-amber-100 text-amber-700 border-amber-200 shadow-none"
+      : insight.health === "overstock"
+      ? "text-xs bg-violet-100 text-violet-700 border-violet-200 shadow-none"
+      : "text-xs bg-green-100 text-green-700 border-green-200 shadow-none";
+  const stockLabel =
+    insight.health === "critical"
+      ? "Critical Stock"
+      : insight.health === "low"
+      ? "Low Stock"
+      : insight.health === "overstock"
+      ? "Overstock"
+      : "Healthy Stock";
 
   return (
     <div className="animate-in slide-in-from-bottom-8 duration-500 bg-white rounded-2xl shadow-2xl p-5 space-y-4 border border-slate-100">
@@ -120,12 +144,10 @@ function ProductResultCard({
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-slate-50 rounded-xl p-3">
           <p className="text-xs text-slate-500">Current Stock</p>
-          <p className={cn("font-bold text-lg", isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-green-600")}>
+          <p className={cn("font-bold text-lg", stockClass)}>
             {product.stock_quantity} <span className="text-sm font-normal">{product.primary_unit}</span>
           </p>
-          {isOut ? <Badge className="text-xs bg-red-100 text-red-700 border-red-200 shadow-none">Out of Stock</Badge>
-            : isLow ? <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200 shadow-none">Low Stock</Badge>
-            : <Badge className="text-xs bg-green-100 text-green-700 border-green-200 shadow-none">In Stock</Badge>}
+          <Badge className={badgeClass}>{stockLabel}</Badge>
         </div>
         <div className="bg-slate-50 rounded-xl p-3">
           <p className="text-xs text-slate-500">Selling Price</p>
@@ -136,7 +158,7 @@ function ProductResultCard({
 
       <div className="grid grid-cols-3 gap-2">
         <Button onClick={() => onAction("in")} className="bg-green-600 hover:bg-green-700 text-white text-xs gap-1">📥 Stock In</Button>
-        <Button onClick={() => onAction("out")} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50 text-xs gap-1" disabled={isOut}>📤 Stock Out</Button>
+        <Button onClick={() => onAction("out")} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50 text-xs gap-1" disabled={insight.onHandQuantity === 0}>📤 Stock Out</Button>
         <Button onClick={() => navigate(`/products/${product.id}`)} variant="outline" className="text-xs gap-1">📋 Details</Button>
       </div>
 
