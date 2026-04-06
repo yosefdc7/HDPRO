@@ -388,6 +388,12 @@ export default function MorePage() {
         title="Reports"
         items={[
           {
+            icon: "🛒",
+            label: "Suggested reorders",
+            sublabel: "Pack-aware quantities from usage & lead time",
+            onClick: () => navigate("/reorders"),
+          },
+          {
             icon: "📋",
             label: "BIR Export",
             sublabel: "Annual inventory list",

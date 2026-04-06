@@ -473,7 +473,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
                   size="icon"
                   onClick={() =>
                     setQuantity((q) =>
-                      movementType === "adjustment" ? q - 1 : Math.max(1, q - 1),
+                      movementType === "ADJUSTMENT" ? q - 1 : Math.max(1, q - 1),
                     )
                   }
                   className="h-10 w-10 flex-shrink-0"
@@ -482,7 +482,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
                 </Button>
                 <Input
                   type="number"
-                  min={movementType === "adjustment" ? undefined : 1}
+                  min={movementType === "ADJUSTMENT" ? undefined : 1}
                   value={quantity}
                   onChange={(e) => { setQuantity(Number(e.target.value)); setQtyError(""); }}
                   className={cn("text-center text-lg font-bold", qtyError && "border-red-400")}

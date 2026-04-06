@@ -56,10 +56,10 @@ function getStockHealth(onHandQuantity: number, criticalLevel: number, reorderPo
 }
 
 export function getStockHealthLabel(health: StockHealth): string {
-  if (health === "critical") return "Critical Stock";
-  if (health === "low") return "Low Stock";
+  if (health === "critical") return "Critical";
+  if (health === "low") return "Low stock";
   if (health === "overstock") return "Overstock";
-  return "Healthy Stock";
+  return "In stock";
 }
 
 export function getProductInventoryInsight(product: Product): ProductInventoryInsight {

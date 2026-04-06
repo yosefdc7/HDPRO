@@ -13,6 +13,7 @@ import SettingsPage from "@/pages/settings";
 import ScanPage from "@/pages/scan";
 import MorePage from "@/pages/more";
 import BirExportPage from "@/pages/bir-export";
+import ReordersPage from "@/pages/reorders";
 import AppLayout from "@/components/layout/app-layout";
 import AuthGuard from "@/components/layout/auth-guard";
 import NotFound from "@/pages/not-found";
@@ -34,6 +35,7 @@ function Router() {
                   <Route path="/dashboard" component={DashboardPage} />
                   <Route path="/products/:id" component={ProductDetailPage} />
                   <Route path="/products" component={ProductsPage} />
+                  <Route path="/reorders" component={ReordersPage} />
                   <Route path="/movements" component={MovementsPage} />
                   <Route path="/more/bir-export" component={BirExportPage} />
                   <Route path="/more" component={MorePage} />

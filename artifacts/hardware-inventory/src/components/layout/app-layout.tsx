@@ -96,6 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       (i) => location === i.href || (i.href !== "/" && location.startsWith(`${i.href}/`))
     );
     if (location.startsWith("/more/bir-export")) return "BIR Export";
+    if (location.startsWith("/reorders")) return "Suggested reorders";
     return item ? item.label : "Hardware Inventory Pro";
   };
 

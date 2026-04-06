@@ -47,6 +47,23 @@ export type Product = {
   critical_stock_level?: number;
   target_stock_level?: number;
   overstock_level?: number;
+  /** Safety stock in base units (optional; defaults from reorder level when missing). */
+  safety_stock_level?: number;
+  /** Supplier lead time in days for reorder cover calculations. */
+  supplier_lead_time_days?: number;
+  /** Base units per supplier purchase unit when not inferable from unit conversions. */
+  purchase_pack_base_qty?: number;
+  /** Display name for purchase unit (e.g. box, roll). */
+  purchase_unit_label?: string;
+  /** Fixed policy lot in base units: target position uses ROP + this when set. */
+  fixed_reorder_qty_base?: number;
+  /** Minimum supplier packs per PO line. */
+  minimum_purchase_units?: number;
+  /** Internal review / batching interval in days (optional). */
+  review_period_days?: number;
+  demand_risk_profile?: "steady" | "slow_mover" | "seasonal";
+  supplier_id?: string;
+  notes?: string;
 };
 
 export type Movement = {
@@ -314,6 +331,16 @@ export function rebuildStockFromMovements(): void {
   const products = getProducts();
   syncProductStockFromReplay(movements, products);
   saveProducts(products);
+}
+
+export function addProduct(product: Product, conversions: UnitConversion[] = []) {
+  const products = getProducts();
+  products.push(normalizeProduct(product));
+  saveProducts(products);
+  if (conversions.length > 0) {
+    const existing = getConversions();
+    saveConversions([...existing, ...conversions]);
+  }
 }
 
 /**

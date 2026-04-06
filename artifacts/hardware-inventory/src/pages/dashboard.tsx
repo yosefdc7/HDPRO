@@ -13,8 +13,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { categories, currentUser } from "@/lib/mock-data";
-import { getProducts, getMovements, type Product, type Movement } from "@/lib/store";
+import {
+  getProducts,
+  getMovements,
+  getConversions,
+  type Product,
+  type Movement,
+  type UnitConversion,
+} from "@/lib/store";
 import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { computeProductReorder } from "@/lib/product-reorder";
 import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
 import { formatPeso, cn } from "@/lib/utils";
 import PullToRefresh from "@/components/layout/pull-to-refresh";
@@ -90,10 +98,12 @@ export default function DashboardPage() {
   const [loaded, setLoaded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [conversions, setConversions] = useState<UnitConversion[]>([]);
 
   function loadData() {
     setProducts(getProducts());
     setMovements(getMovements());
+    setConversions(getConversions());
   }
 
   useEffect(() => {
@@ -123,14 +133,11 @@ export default function DashboardPage() {
 
   const needsRestock = useMemo(() => {
     return [...products]
-      .filter((p) => getProductInventoryInsight(p).reorderQuantity > 0)
-      .sort(
-        (a, b) =>
-          getProductInventoryInsight(b).reorderQuantity -
-          getProductInventoryInsight(a).reorderQuantity
-      )
+      .map((p) => ({ p, r: computeProductReorder(p, movements, conversions) }))
+      .filter(({ r }) => r.shouldReorder && r.suggestedOrderBase > 0)
+      .sort((a, b) => b.r.suggestedOrderBase - a.r.suggestedOrderBase)
       .slice(0, 5);
-  }, [products]);
+  }, [products, movements, conversions]);
 
   const recentActivity = useMemo(() => movements.slice(0, 10), [movements]);
 
@@ -290,11 +297,11 @@ export default function DashboardPage() {
                   Needs Restock
                 </CardTitle>
                 <Link
-                  href="/products"
+                  href="/reorders"
                   className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
                   data-testid="needs-restock-view-all"
                 >
-                  View all <ChevronRight className="h-4 w-4" />
+                  Suggested reorders <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
             </CardHeader>
@@ -305,12 +312,16 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {needsRestock.map((product) => {
+                  {needsRestock.map(({ p: product, r: reorder }) => {
                     const insight = getProductInventoryInsight(product);
                     const isCritical = insight.health === "critical";
                     const pct = insight.reorderPoint === 0
                       ? 100
-                      : Math.min(100, (insight.availableSoonQuantity / insight.reorderPoint) * 100);
+                      : Math.min(100, (reorder.projectedPositionBase / insight.reorderPoint) * 100);
+                    const packLine =
+                      reorder.purchaseUnitLabel != null && reorder.suggestedPurchaseUnits > 0
+                        ? `${reorder.suggestedPurchaseUnits} ${reorder.purchaseUnitLabel}${reorder.suggestedPurchaseUnits === 1 ? "" : "s"}`
+                        : null;
                     return (
                       <div
                         key={product.id}
@@ -341,11 +352,12 @@ export default function DashboardPage() {
                               </Badge>
                             )}
                             <p className="text-xs text-slate-500 mt-1">
-                              {insight.availableSoonQuantity} / {insight.reorderPoint}{" "}
+                              {Math.round(reorder.projectedPositionBase)} / {insight.reorderPoint}{" "}
                               {product.primary_unit}
                             </p>
                             <p className="text-[11px] text-blue-600 font-semibold mt-0.5">
-                              Reorder: {insight.reorderQuantity} {product.primary_unit}
+                              Order: {Math.round(reorder.suggestedOrderBase)} {product.primary_unit}
+                              {packLine ? ` · ${packLine}` : ""}
                             </p>
                           </div>
                         </div>

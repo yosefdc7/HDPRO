@@ -1,4 +1,4 @@
-import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react/src/custom-fetch";
+import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 
 // We set this once here. Because Vite proxies /api to port 3000 automatically, 
 // using just "/api" works perfectly offline and online.
