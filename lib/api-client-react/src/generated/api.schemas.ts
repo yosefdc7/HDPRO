@@ -26,23 +26,65 @@ export interface Product {
 export type MovementType = (typeof MovementType)[keyof typeof MovementType];
 
 export const MovementType = {
-  IN: "IN",
-  OUT: "OUT",
+  PURCHASE_RECEIVED: "PURCHASE_RECEIVED",
+  SALE: "SALE",
   ADJUSTMENT: "ADJUSTMENT",
-  DELIVERY: "DELIVERY",
   DAMAGE: "DAMAGE",
-  RETURN: "RETURN",
-  TRANSFER: "TRANSFER",
+  RETURN_IN: "RETURN_IN",
+  RETURN_OUT: "RETURN_OUT",
+  TRANSFER_IN: "TRANSFER_IN",
+  TRANSFER_OUT: "TRANSFER_OUT",
+  DELIVERY_RECEIVED: "DELIVERY_RECEIVED",
+} as const;
+
+export type MovementSyncStatus =
+  (typeof MovementSyncStatus)[keyof typeof MovementSyncStatus];
+
+export const MovementSyncStatus = {
+  synced: "synced",
+  pending: "pending",
+  conflict: "conflict",
 } as const;
 
 export interface Movement {
   id: string;
   productId: string;
   type: MovementType;
-  quantity: number;
-  unit: string;
+  /** Magnitude in primary (base) units, or signed delta for ADJUSTMENT */
+  quantityBase: number;
+  signedDeltaBase: number;
+  quantityBeforeBase: number;
+  quantityAfterBase: number;
+  /** Original entry unit when converted to base */
+  sourceUnit?: string;
+  reason: string;
   notes?: string;
+  actorUserId: string;
   capturedAt: string;
+  syncStatus?: MovementSyncStatus;
+  createdAt?: string;
+}
+
+export type CreateMovementSyncStatus =
+  (typeof CreateMovementSyncStatus)[keyof typeof CreateMovementSyncStatus];
+
+export const CreateMovementSyncStatus = {
+  synced: "synced",
+  pending: "pending",
+  conflict: "conflict",
+} as const;
+
+export interface CreateMovement {
+  id: string;
+  productId: string;
+  type: MovementType;
+  quantityBase: number;
+  reason: string;
+  notes?: string;
+  actorUserId: string;
+  capturedAt: string;
+  sourceUnit?: string;
+  syncStatus?: CreateMovementSyncStatus;
 }
 
 export type SyncPayloadEntity =

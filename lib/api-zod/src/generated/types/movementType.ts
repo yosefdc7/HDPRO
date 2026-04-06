@@ -9,11 +9,13 @@
 export type MovementType = (typeof MovementType)[keyof typeof MovementType];
 
 export const MovementType = {
-  IN: "IN",
-  OUT: "OUT",
+  PURCHASE_RECEIVED: "PURCHASE_RECEIVED",
+  SALE: "SALE",
   ADJUSTMENT: "ADJUSTMENT",
-  DELIVERY: "DELIVERY",
   DAMAGE: "DAMAGE",
-  RETURN: "RETURN",
-  TRANSFER: "TRANSFER",
+  RETURN_IN: "RETURN_IN",
+  RETURN_OUT: "RETURN_OUT",
+  TRANSFER_IN: "TRANSFER_IN",
+  TRANSFER_OUT: "TRANSFER_OUT",
+  DELIVERY_RECEIVED: "DELIVERY_RECEIVED",
 } as const;

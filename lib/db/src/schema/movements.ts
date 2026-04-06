@@ -1,32 +1,46 @@
-import { pgTable, text, timestamp, integer, uuid, pgEnum, jsonb } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  uuid,
+  pgEnum,
+  jsonb,
+} from "drizzle-orm/pg-core";
 import { productsTable, syncStatusEnum } from "./products";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { STOCK_MOVEMENT_TYPES_PG } from "@workspace/stock-engine";
 
-export const movementTypeEnum = pgEnum('movement_type', [
-  'IN', 
-  'OUT', 
-  'ADJUSTMENT', 
-  'DELIVERY', 
-  'DAMAGE', 
-  'RETURN', 
-  'TRANSFER'
-]);
+export const movementTypeEnum = pgEnum("movement_type", STOCK_MOVEMENT_TYPES_PG);
 
 export const movementsTable = pgTable("movements", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  productId: uuid("product_id").notNull().references(() => productsTable.id),
+  /** Client-generated id for offline-first idempotency */
+  id: uuid("id").primaryKey(),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => productsTable.id),
   type: movementTypeEnum("type").notNull(),
-  quantity: integer("quantity").notNull(), // Quantity passed. Base business logic translates this against unit factors.
-  unit: text("unit").notNull(), // E.g., 'box', 'pcs', 'roll'
+  /** Magnitude in base units, or signed delta for ADJUSTMENT */
+  quantityBase: integer("quantity_base").notNull(),
+  signedDeltaBase: integer("signed_delta_base").notNull(),
+  quantityBeforeBase: integer("quantity_before_base").notNull(),
+  quantityAfterBase: integer("quantity_after_base").notNull(),
+  /** Original user unit for audit / UI (optional when already base) */
+  sourceUnit: text("source_unit"),
+  reason: text("reason").notNull(),
   notes: text("notes"),
-  
-  // Offline-first fields
-  capturedAt: timestamp("captured_at").notNull(), // True timestamp of when movement happened offline
-  syncStatus: syncStatusEnum("sync_status").notNull().default('synced'),
-  mobileSnapshot: jsonb("mobile_snapshot"), // On 409 conflict, store the conflicting offline payload
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  actorUserId: text("actor_user_id").notNull(),
+
+  capturedAt: timestamp("captured_at", { withTimezone: true }).notNull(),
+  syncStatus: syncStatusEnum("sync_status").notNull().default("synced"),
+  mobileSnapshot: jsonb("mobile_snapshot"),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
-export const insertMovementSchema = createInsertSchema(movementsTable).omit({ id: true, createdAt: true });
+export const insertMovementSchema = createInsertSchema(movementsTable).omit({
+  createdAt: true,
+});
 export const selectMovementSchema = createSelectSchema(movementsTable);

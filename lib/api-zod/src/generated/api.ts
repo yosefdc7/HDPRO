@@ -39,20 +39,96 @@ export const GetMovementsResponseItem = zod.object({
   id: zod.string(),
   productId: zod.string(),
   type: zod.enum([
-    "IN",
-    "OUT",
+    "PURCHASE_RECEIVED",
+    "SALE",
     "ADJUSTMENT",
-    "DELIVERY",
     "DAMAGE",
-    "RETURN",
-    "TRANSFER",
+    "RETURN_IN",
+    "RETURN_OUT",
+    "TRANSFER_IN",
+    "TRANSFER_OUT",
+    "DELIVERY_RECEIVED",
   ]),
-  quantity: zod.number(),
-  unit: zod.string(),
+  quantityBase: zod
+    .number()
+    .describe(
+      "Magnitude in primary (base) units, or signed delta for ADJUSTMENT",
+    ),
+  signedDeltaBase: zod.number(),
+  quantityBeforeBase: zod.number(),
+  quantityAfterBase: zod.number(),
+  sourceUnit: zod
+    .string()
+    .optional()
+    .describe("Original entry unit when converted to base"),
+  reason: zod.string(),
   notes: zod.string().optional(),
-  capturedAt: zod.string(),
+  actorUserId: zod.string(),
+  capturedAt: zod.coerce.date(),
+  syncStatus: zod.enum(["synced", "pending", "conflict"]).optional(),
+  createdAt: zod.coerce.date().optional(),
 });
 export const GetMovementsResponse = zod.array(GetMovementsResponseItem);
+
+/**
+ * @summary Record a stock movement (idempotent on client movement id)
+ */
+export const CreateMovementBody = zod.object({
+  id: zod.string().uuid(),
+  productId: zod.string().uuid(),
+  type: zod.enum([
+    "PURCHASE_RECEIVED",
+    "SALE",
+    "ADJUSTMENT",
+    "DAMAGE",
+    "RETURN_IN",
+    "RETURN_OUT",
+    "TRANSFER_IN",
+    "TRANSFER_OUT",
+    "DELIVERY_RECEIVED",
+  ]),
+  quantityBase: zod.number(),
+  reason: zod.string(),
+  notes: zod.string().optional(),
+  actorUserId: zod.string(),
+  capturedAt: zod.coerce.date(),
+  sourceUnit: zod.string().optional(),
+  syncStatus: zod.enum(["synced", "pending", "conflict"]).optional(),
+});
+
+export const CreateMovementResponse = zod.object({
+  id: zod.string(),
+  productId: zod.string(),
+  type: zod.enum([
+    "PURCHASE_RECEIVED",
+    "SALE",
+    "ADJUSTMENT",
+    "DAMAGE",
+    "RETURN_IN",
+    "RETURN_OUT",
+    "TRANSFER_IN",
+    "TRANSFER_OUT",
+    "DELIVERY_RECEIVED",
+  ]),
+  quantityBase: zod
+    .number()
+    .describe(
+      "Magnitude in primary (base) units, or signed delta for ADJUSTMENT",
+    ),
+  signedDeltaBase: zod.number(),
+  quantityBeforeBase: zod.number(),
+  quantityAfterBase: zod.number(),
+  sourceUnit: zod
+    .string()
+    .optional()
+    .describe("Original entry unit when converted to base"),
+  reason: zod.string(),
+  notes: zod.string().optional(),
+  actorUserId: zod.string(),
+  capturedAt: zod.coerce.date(),
+  syncStatus: zod.enum(["synced", "pending", "conflict"]).optional(),
+  createdAt: zod.coerce.date().optional(),
+});
 
 /**
  * @summary Get all unresolved sync conflicts

@@ -46,13 +46,16 @@ function StockActionModal({
     if (!product) return;
     if (action === "out" && n > product.stock_quantity) { setErr(`Exceeds current stock (${product.stock_quantity})`); return; }
     const movement: Movement = {
-      id: `sm-${Date.now()}`,
-      type: action,
+      id: crypto.randomUUID(),
+      type: action === "in" ? "PURCHASE_RECEIVED" : "SALE",
       product_id: product.id,
       product_name: product.name,
       quantity: n,
       unit: product.primary_unit,
-      note: note.trim() || (action === "in" ? "Stock In (scan)" : "Stock Out (scan)"),
+      reason:
+        note.trim() ||
+        (action === "in" ? "Stock in (scan)" : "Stock out (scan)"),
+      note: note.trim(),
       by: currentUser.name.split(" ")[0],
       timestamp: new Date().toISOString(),
     };

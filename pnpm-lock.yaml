@@ -159,6 +159,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/stock-engine':
+        specifier: workspace:*
+        version: link:../../lib/stock-engine
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -325,6 +328,9 @@ importers:
       '@workspace/inventory-units':
         specifier: workspace:*
         version: link:../../lib/inventory-units
+      '@workspace/stock-engine':
+        specifier: workspace:*
+        version: link:../../lib/stock-engine
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -604,6 +610,9 @@ importers:
 
   lib/db:
     dependencies:
+      '@workspace/stock-engine':
+        specifier: workspace:*
+        version: link:../stock-engine
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.1(@types/pg@8.18.0)(pg@8.20.0)
@@ -628,6 +637,37 @@ importers:
         version: 0.31.9
 
   lib/inventory-units:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  lib/reorder-engine:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  lib/stock-engine:
+    dependencies:
+      '@workspace/inventory-units':
+        specifier: workspace:*
+        version: link:../inventory-units
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

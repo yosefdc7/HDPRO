@@ -18,6 +18,7 @@ import type {
 
 import type {
   ConflictItem,
+  CreateMovement,
   HealthStatus,
   Movement,
   Product,
@@ -259,6 +260,92 @@ export function useGetMovements<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Record a stock movement (idempotent on client movement id)
+ */
+export const getCreateMovementUrl = () => {
+  return `/api/movements`;
+};
+
+export const createMovement = async (
+  createMovement: CreateMovement,
+  options?: RequestInit,
+): Promise<Movement> => {
+  return customFetch<Movement>(getCreateMovementUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createMovement),
+  });
+};
+
+export const getCreateMovementMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMovement>>,
+    TError,
+    { data: BodyType<CreateMovement> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createMovement>>,
+  TError,
+  { data: BodyType<CreateMovement> },
+  TContext
+> => {
+  const mutationKey = ["createMovement"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createMovement>>,
+    { data: BodyType<CreateMovement> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createMovement(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateMovementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createMovement>>
+>;
+export type CreateMovementMutationBody = BodyType<CreateMovement>;
+export type CreateMovementMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a stock movement (idempotent on client movement id)
+ */
+export const useCreateMovement = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMovement>>,
+    TError,
+    { data: BodyType<CreateMovement> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createMovement>>,
+  TError,
+  { data: BodyType<CreateMovement> },
+  TContext
+> => {
+  return useMutation(getCreateMovementMutationOptions(options));
+};
 
 /**
  * @summary Get all unresolved sync conflicts

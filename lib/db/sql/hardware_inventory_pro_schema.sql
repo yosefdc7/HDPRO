@@ -298,19 +298,48 @@ CREATE TABLE delivery_lines (
   po_line_id uuid REFERENCES purchase_order_lines(id),
   product_id uuid NOT NULL REFERENCES products(id),
   location_id uuid NOT NULL REFERENCES stock_locations(id),
-  received_qty numeric(18, 6) NOT NULL CHECK (received_qty > 0),
   received_unit_id uuid NOT NULL REFERENCES units(id),
-  received_base_qty numeric(18, 6) NOT NULL CHECK (received_base_qty > 0),
+  accepted_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (accepted_qty >= 0),
+  damaged_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (damaged_qty >= 0),
+  missing_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (missing_qty >= 0),
+  rejected_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (rejected_qty >= 0),
+  accepted_base_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (accepted_base_qty >= 0),
+  damaged_base_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (damaged_base_qty >= 0),
+  missing_base_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (missing_base_qty >= 0),
+  rejected_base_qty numeric(18, 6) NOT NULL DEFAULT 0 CHECK (rejected_base_qty >= 0),
+  received_qty numeric(18, 6) GENERATED ALWAYS AS (
+    accepted_qty + damaged_qty + missing_qty + rejected_qty
+  ) STORED,
+  received_base_qty numeric(18, 6) GENERATED ALWAYS AS (
+    accepted_base_qty + damaged_base_qty + missing_base_qty + rejected_base_qty
+  ) STORED,
   unit_cost_base numeric(14, 6),
   row_version bigint NOT NULL DEFAULT 0,
   last_modified_by_device_id uuid REFERENCES sync_devices(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  CONSTRAINT delivery_lines_disposition_positive CHECK (
+    accepted_base_qty + damaged_base_qty + missing_base_qty + rejected_base_qty > 0
+  )
 );
 CREATE TRIGGER tr_delivery_lines_set_version
 BEFORE UPDATE ON delivery_lines
 FOR EACH ROW EXECUTE FUNCTION set_row_version_and_updated_at();
+
+CREATE OR REPLACE VIEW v_product_incoming_open_po_base AS
+SELECT
+  pol.product_id,
+  coalesce(sum(pol.open_base_qty), 0)::numeric(18, 6) AS incoming_open_base_qty
+FROM purchase_order_lines pol
+JOIN purchase_orders po ON po.id = pol.purchase_order_id
+WHERE po.deleted_at IS NULL
+  AND pol.deleted_at IS NULL
+  AND po.status NOT IN ('received', 'cancelled')
+GROUP BY pol.product_id;
+
+COMMENT ON VIEW v_product_incoming_open_po_base IS
+  'Pipeline quantity from open POs: sum(open_base_qty) per product (visible before full receipt).';
 
 -- =========================
 -- STOCK POLICY + LEDGER
@@ -666,9 +695,25 @@ WHERE s.supplier_code = 'SUP-BUILDMAX'
 ON CONFLICT (delivery_number) DO NOTHING;
 
 INSERT INTO delivery_lines (
-  delivery_id, po_line_id, product_id, location_id, received_qty, received_unit_id, received_base_qty, unit_cost_base
+  delivery_id,
+  po_line_id,
+  product_id,
+  location_id,
+  received_unit_id,
+  accepted_qty,
+  damaged_qty,
+  missing_qty,
+  rejected_qty,
+  accepted_base_qty,
+  damaged_base_qty,
+  missing_base_qty,
+  rejected_base_qty,
+  unit_cost_base
 )
-SELECT d.id, pol.id, p.id, l.id, 120, u_bag.id, 6000, 0.135
+SELECT d.id, pol.id, p.id, l.id, u_bag.id,
+  100, 10, 0, 10,
+  5000, 500, 0, 500,
+  0.135
 FROM deliveries d
 JOIN purchase_orders po ON po.id = d.purchase_order_id
 JOIN purchase_order_lines pol ON pol.purchase_order_id = po.id AND pol.line_no = 1
@@ -683,8 +728,23 @@ AND NOT EXISTS (
     AND dl.po_line_id = pol.id
     AND dl.product_id = p.id
     AND dl.location_id = l.id
-    AND dl.received_base_qty = 6000
+    AND dl.accepted_base_qty = 5000
+    AND dl.damaged_base_qty = 500
+    AND dl.rejected_base_qty = 500
 );
+
+UPDATE purchase_order_lines pol
+SET open_base_qty = pol.open_base_qty - 6000
+FROM purchase_orders po
+WHERE pol.purchase_order_id = po.id
+  AND po.po_number = 'PO-1001'
+  AND pol.line_no = 1
+  AND pol.open_base_qty = 10000;
+
+UPDATE purchase_orders po
+SET status = 'partially_received'
+WHERE po.po_number = 'PO-1001'
+  AND po.status = 'approved';
 
 INSERT INTO stock_transactions (txn_type, source_doc_type, source_doc_id, txn_time, idempotency_key, notes)
 SELECT 'receipt', 'delivery_line', dl.id, now(), 'txn-delivery-d9001-line1', 'Receipt from D-9001'
@@ -695,7 +755,7 @@ LIMIT 1
 ON CONFLICT (idempotency_key) DO NOTHING;
 
 INSERT INTO stock_transaction_lines (stock_transaction_id, product_id, location_id, delta_base_qty, balance_after_base_qty, note)
-SELECT st.id, p.id, l.id, 6000, NULL, 'Cement receipt: 120 bag => 6000 kg'
+SELECT st.id, p.id, l.id, 5000, NULL, 'Receipt D-9001: 100 bags accepted into stock; 10 damaged, 10 rejected (no stock)'
 FROM stock_transactions st
 JOIN products p ON p.sku = 'CEM-OPC-50'
 JOIN stock_locations l ON l.code = 'WH-A'
@@ -706,8 +766,7 @@ AND NOT EXISTS (
   WHERE stl.stock_transaction_id = st.id
     AND stl.product_id = p.id
     AND stl.location_id = l.id
-    AND stl.delta_base_qty = 6000
-    AND stl.note = 'Cement receipt: 120 bag => 6000 kg'
+    AND stl.delta_base_qty = 5000
 );
 
 -- Example outgoing sale movement from same stock

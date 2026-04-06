@@ -58,6 +58,29 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Movement"
+    post:
+      operationId: createMovement
+      tags: [movements]
+      summary: Record a stock movement (idempotent on client movement id)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMovement"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Movement"
+        "200":
+          description: Already applied (duplicate id)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Movement"
                   
   /sync/conflicts:
     get:
@@ -149,17 +172,71 @@ components:
         sellingPrice: { type: string }
       required: [id, sku, name, primaryUnit, stockQuantity, sellingPrice]
 
+    MovementType:
+      type: string
+      enum:
+        - PURCHASE_RECEIVED
+        - SALE
+        - ADJUSTMENT
+        - DAMAGE
+        - RETURN_IN
+        - RETURN_OUT
+        - TRANSFER_IN
+        - TRANSFER_OUT
+        - DELIVERY_RECEIVED
+
     Movement:
       type: object
       properties:
         id: { type: string }
         productId: { type: string }
-        type: { type: string, enum: [IN, OUT, ADJUSTMENT, DELIVERY, DAMAGE, RETURN, TRANSFER] }
-        quantity: { type: number }
-        unit: { type: string }
+        type: { $ref: "#/components/schemas/MovementType" }
+        quantityBase:
+          type: integer
+          description: Magnitude in primary (base) units, or signed delta for ADJUSTMENT
+        signedDeltaBase: { type: integer }
+        quantityBeforeBase: { type: integer }
+        quantityAfterBase: { type: integer }
+        sourceUnit: { type: string, description: Original entry unit when converted to base }
+        reason: { type: string }
         notes: { type: string }
-        capturedAt: { type: string }
-      required: [id, productId, type, quantity, unit, capturedAt]
+        actorUserId: { type: string }
+        capturedAt: { type: string, format: date-time }
+        syncStatus: { type: string, enum: [synced, pending, conflict] }
+        createdAt: { type: string, format: date-time }
+      required:
+        - id
+        - productId
+        - type
+        - quantityBase
+        - signedDeltaBase
+        - quantityBeforeBase
+        - quantityAfterBase
+        - reason
+        - actorUserId
+        - capturedAt
+
+    CreateMovement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/MovementType" }
+        quantityBase: { type: integer }
+        reason: { type: string }
+        notes: { type: string }
+        actorUserId: { type: string }
+        capturedAt: { type: string, format: date-time }
+        sourceUnit: { type: string }
+        syncStatus: { type: string, enum: [synced, pending, conflict] }
+      required:
+        - id
+        - productId
+        - type
+        - quantityBase
+        - reason
+        - actorUserId
+        - capturedAt
       
     SyncPayload:
       type: object

@@ -30,6 +30,9 @@ import {
   getProducts,
   getConversions,
   addMovementAndUpdateStock,
+  MOVEMENT_TYPES,
+  assertMovementApply,
+  StockEngineError,
   type Movement,
   type Product,
   type UnitConversion,
@@ -133,28 +136,23 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
   const [productSearch, setProductSearch] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [movementType, setMovementType] = useState<Movement["type"]>("in");
+  const [movementType, setMovementType] =
+    useState<Movement["type"]>("PURCHASE_RECEIVED");
   const [quantity, setQuantity] = useState(1);
   const [selectedUnit, setSelectedUnit] = useState("");
   const [note, setNote] = useState("");
   const [qtyError, setQtyError] = useState("");
-  const movementTypeOptions: Movement["type"][] = [
-    "in",
-    "out",
-    "adjustment",
-    "delivery",
-    "damage",
-    "return",
-    "transfer",
-  ];
+  const movementTypeOptions = [...MOVEMENT_TYPES];
   const defaultNoteByType: Record<Movement["type"], string> = {
-    in: "Stock In",
-    out: "Stock Out",
-    adjustment: "Adjustment",
-    delivery: "Supplier Delivery",
-    damage: "Damaged Inventory",
-    return: "Customer Return",
-    transfer: "Branch Transfer",
+    PURCHASE_RECEIVED: "Purchase received",
+    SALE: "Sale",
+    ADJUSTMENT: "Adjustment",
+    DAMAGE: "Damaged inventory",
+    RETURN_IN: "Return in (stock)",
+    RETURN_OUT: "Return out (vendor/customer)",
+    TRANSFER_IN: "Transfer in",
+    TRANSFER_OUT: "Transfer out",
+    DELIVERY_RECEIVED: "Delivery received",
   };
 
   useEffect(() => {
@@ -174,7 +172,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
       }
       setProductSearch("");
       setBarcodeInput("");
-      setMovementType("in");
+      setMovementType("PURCHASE_RECEIVED");
       setQuantity(1);
       setNote("");
       setQtyError("");
@@ -212,6 +210,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
   );
 
   const conversionPreview = useMemo(() => {
+    if (movementType === "ADJUSTMENT") return null;
     if (!selectedProduct || selectedUnit === selectedProduct.primary_unit) return null;
     if (!Number.isInteger(quantity)) return null;
     const ctx = productConversionContext(selectedProduct, productConversions);
@@ -222,7 +221,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
       if (e instanceof ConversionError) return null;
       throw e;
     }
-  }, [selectedProduct, selectedUnit, quantity, productConversions]);
+  }, [selectedProduct, selectedUnit, quantity, productConversions, movementType]);
 
   const unitOptions = useMemo(() => {
     if (!selectedProduct) return [];
@@ -235,7 +234,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
 
   function validateAndConfirm() {
     setQtyError("");
-    if (movementType === "adjustment") {
+    if (movementType === "ADJUSTMENT") {
       if (quantity === 0) {
         setQtyError("Adjustment quantity cannot be zero");
         return;
@@ -250,6 +249,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
     }
     if (
       selectedProduct &&
+      movementType !== "ADJUSTMENT" &&
       selectedUnit !== selectedProduct.primary_unit &&
       conversionPreview === null
     ) {
@@ -258,11 +258,41 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
       );
       return;
     }
-    if (MOVEMENT_UI_META[movementType].direction === "out" && selectedProduct) {
-      const outQty = conversionPreview ? conversionPreview.converted : quantity;
-      if (outQty > selectedProduct.stock_quantity) {
-        setQtyError(`Cannot exceed current stock (${selectedProduct.stock_quantity} ${selectedProduct.primary_unit})`);
-        return;
+    if (selectedProduct) {
+      try {
+        const qtyForApply =
+          movementType === "ADJUSTMENT"
+            ? quantity
+            : conversionPreview
+              ? conversionPreview.converted
+              : quantity;
+        const unitForApply =
+          movementType === "ADJUSTMENT"
+            ? selectedUnit
+            : conversionPreview
+              ? conversionPreview.to_unit
+              : selectedUnit;
+        assertMovementApply(
+          {
+            type: movementType,
+            quantity: qtyForApply,
+            unit: unitForApply,
+            product_id: selectedProduct.id,
+          },
+          selectedProduct,
+        );
+      } catch (e) {
+        if (e instanceof StockEngineError && e.code === "INSUFFICIENT_STOCK") {
+          setQtyError(
+            `Cannot exceed current stock (${selectedProduct.stock_quantity} ${selectedProduct.primary_unit})`,
+          );
+          return;
+        }
+        if (e instanceof StockEngineError) {
+          setQtyError(e.message);
+          return;
+        }
+        throw e;
       }
     }
     setStep(3);
@@ -270,22 +300,43 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
 
   function handleConfirm() {
     if (!selectedProduct) return;
-    const actualQty = conversionPreview ? conversionPreview.converted : quantity;
-    const actualUnit = conversionPreview ? conversionPreview.to_unit : selectedUnit;
+    const isAdjustment = movementType === "ADJUSTMENT";
+    const actualQty = isAdjustment
+      ? quantity
+      : conversionPreview
+        ? conversionPreview.converted
+        : quantity;
+    const actualUnit = isAdjustment
+      ? selectedUnit
+      : conversionPreview
+        ? conversionPreview.to_unit
+        : selectedUnit;
+    const reasonText = (note.trim() || defaultNoteByType[movementType]).trim();
 
     const movement: Movement = {
-      id: `sm-${Date.now()}`,
+      id: crypto.randomUUID(),
       type: movementType,
       product_id: selectedProduct.id,
       product_name: selectedProduct.name,
       quantity: actualQty,
       unit: actualUnit,
-      note: note.trim() || defaultNoteByType[movementType],
+      reason: reasonText,
+      note: note.trim(),
       by: currentUser.name.split(" ")[0],
       timestamp: new Date().toISOString(),
+      sync_status: isOffline ? "pending" : "synced",
     };
 
-    addMovementAndUpdateStock(movement);
+    try {
+      addMovementAndUpdateStock(movement);
+    } catch (e) {
+      toast({
+        title: "Could not record movement",
+        description: e instanceof Error ? e.message : "Unknown error",
+        variant: "destructive",
+      });
+      return;
+    }
     onRecorded(movement);
     if (isOffline) {
       toast({ title: "Saved locally!", description: "Movement saved to your device. It will sync when you're back online.", variant: "success" });
@@ -556,9 +607,11 @@ export default function MovementsPage() {
 
   const filtered = useMemo(() => {
     return movements.filter((m) => {
+      const q = search.toLowerCase();
       const matchSearch =
-        m.product_name.toLowerCase().includes(search.toLowerCase()) ||
-        m.note.toLowerCase().includes(search.toLowerCase());
+        m.product_name.toLowerCase().includes(q) ||
+        m.note.toLowerCase().includes(q) ||
+        m.reason.toLowerCase().includes(q);
       const matchType = typeFilter === "all" || m.type === typeFilter;
       const matchDate = isInDateRange(m.timestamp, dateFilter);
       return matchSearch && matchType && matchDate;
@@ -587,13 +640,11 @@ export default function MovementsPage() {
 
   const typeFilterOptions: { key: TypeFilter; label: string; icon: string }[] = [
     { key: "all", label: "All", icon: "" },
-    { key: "in", label: "Stock In", icon: "📥" },
-    { key: "out", label: "Stock Out", icon: "📤" },
-    { key: "adjustment", label: "Adjustments", icon: "🔄" },
-    { key: "delivery", label: "Deliveries", icon: "🚚" },
-    { key: "damage", label: "Damage", icon: "🧯" },
-    { key: "return", label: "Returns", icon: "↩️" },
-    { key: "transfer", label: "Transfers", icon: "🔁" },
+    ...MOVEMENT_TYPES.map((t) => ({
+      key: t as TypeFilter,
+      label: MOVEMENT_UI_META[t].label,
+      icon: MOVEMENT_UI_META[t].emoji,
+    })),
   ];
 
   const dateFilterOptions: { key: DateFilter; label: string }[] = [
@@ -730,7 +781,7 @@ export default function MovementsPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-900 text-sm truncate">{m.product_name}</p>
-                            <p className="text-xs text-slate-400 truncate">{m.note}</p>
+                            <p className="text-xs text-slate-400 truncate">{m.reason}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className={cn("text-sm font-bold", movementMeta.textClass)}>
@@ -745,7 +796,14 @@ export default function MovementsPage() {
                         </div>
                         {isExpanded && (
                           <div className="px-4 pb-3 bg-slate-50 border-t border-slate-100 text-xs text-slate-600 space-y-1 animate-in fade-in duration-200">
-                            <p><span className="font-medium">Full note:</span> {m.note || "(none)"}</p>
+                            <p><span className="font-medium">Reason:</span> {m.reason}</p>
+                            <p><span className="font-medium">Note:</span> {m.note || "(none)"}</p>
+                            {m.quantity_before_base !== undefined && (
+                              <p>
+                                <span className="font-medium">Before / after (base):</span>{" "}
+                                {m.quantity_before_base} → {m.quantity_after_base}
+                              </p>
+                            )}
                             <p><span className="font-medium">Timestamp:</span> {new Date(m.timestamp).toLocaleString("en-PH")}</p>
                             <p><span className="font-medium">Movement ID:</span> <span className="font-mono">{m.id}</span></p>
                             <p><span className="font-medium">Recorded by:</span> {m.by}</p>

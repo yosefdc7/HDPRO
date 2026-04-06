@@ -1,3 +1,13 @@
+import type { ConversionContext, UnitConversionRule } from "@workspace/inventory-units";
+import {
+  applyMovement,
+  quantityBaseForCreate,
+  replayMovements,
+  sortMovementsForReplay,
+  StockEngineError,
+  STOCK_MOVEMENT_TYPES,
+  type StockMovementType,
+} from "@workspace/stock-engine";
 import {
   products as mockProducts,
   stockMovements as mockMovements,
@@ -5,17 +15,20 @@ import {
   suppliers as mockSuppliers,
 } from "./mock-data";
 
-const INIT_KEY = "hw_store_v1";
-export const MOVEMENT_TYPES = [
-  "in",
-  "out",
-  "adjustment",
-  "delivery",
-  "damage",
-  "return",
-  "transfer",
-] as const;
-export type MovementType = (typeof MOVEMENT_TYPES)[number];
+const INIT_KEY = "hw_store_v2";
+
+export const MOVEMENT_TYPES = STOCK_MOVEMENT_TYPES;
+export type MovementType = StockMovementType;
+
+const LEGACY_TYPE_MAP: Record<string, StockMovementType> = {
+  in: "PURCHASE_RECEIVED",
+  out: "SALE",
+  adjustment: "ADJUSTMENT",
+  delivery: "DELIVERY_RECEIVED",
+  damage: "DAMAGE",
+  return: "RETURN_IN",
+  transfer: "TRANSFER_OUT",
+};
 
 export type Product = {
   id: string;
@@ -41,11 +54,18 @@ export type Movement = {
   type: MovementType;
   product_id: string;
   product_name: string;
+  /** Quantity as entered / displayed in `unit` */
   quantity: number;
   unit: string;
+  quantity_base?: number;
+  signed_delta_base?: number;
+  quantity_before_base?: number;
+  quantity_after_base?: number;
+  reason: string;
   note: string;
   by: string;
   timestamp: string;
+  sync_status?: "synced" | "pending" | "conflict";
 };
 
 export type UnitConversion = {
@@ -65,8 +85,28 @@ export type Supplier = {
   products: string[];
 };
 
-const STOCK_INCREASING_TYPES = new Set<MovementType>(["in", "delivery", "return"]);
-const STOCK_DECREASING_TYPES = new Set<MovementType>(["out", "damage", "transfer"]);
+function rulesForProduct(
+  productId: string,
+  conversions: UnitConversion[],
+): readonly UnitConversionRule[] {
+  return conversions
+    .filter((c) => c.product_id === productId)
+    .map((c) => ({
+      fromUnit: c.from_unit,
+      toUnit: c.to_unit,
+      factor: c.factor,
+    }));
+}
+
+export function conversionContextForProduct(
+  product: Product,
+  conversions: UnitConversion[],
+): ConversionContext {
+  return {
+    baseUnit: product.primary_unit,
+    rules: rulesForProduct(product.id, conversions),
+  };
+}
 
 function normalizeProduct(product: Product): Product {
   const incoming = Number(product.incoming_quantity ?? 0);
@@ -76,37 +116,124 @@ function normalizeProduct(product: Product): Product {
   };
 }
 
+function normalizeMovementType(raw: string): StockMovementType {
+  if ((MOVEMENT_TYPES as readonly string[]).includes(raw)) {
+    return raw as StockMovementType;
+  }
+  return LEGACY_TYPE_MAP[raw] ?? "ADJUSTMENT";
+}
+
 function normalizeMovement(movement: Movement): Movement {
-  const normalizedType = MOVEMENT_TYPES.includes(movement.type)
-    ? movement.type
-    : "adjustment";
+  const normalizedType = normalizeMovementType(movement.type as string);
   const rawQuantity = Number(movement.quantity);
   const safeQuantity = Number.isFinite(rawQuantity) ? rawQuantity : 0;
+  const qty =
+    normalizedType === "ADJUSTMENT" ? safeQuantity : Math.abs(safeQuantity);
   return {
     ...movement,
     type: normalizedType,
-    quantity:
-      normalizedType === "adjustment" ? safeQuantity : Math.abs(safeQuantity),
+    quantity: qty,
+    reason: movement.reason?.trim() || movement.note?.trim() || "—",
+    note: movement.note ?? "",
   };
 }
 
-function applyMovementToStock(currentStock: number, movement: Movement): number {
-  if (STOCK_INCREASING_TYPES.has(movement.type)) {
-    return currentStock + movement.quantity;
-  }
-  if (STOCK_DECREASING_TYPES.has(movement.type)) {
-    return Math.max(0, currentStock - movement.quantity);
-  }
-  return Math.max(0, currentStock + movement.quantity);
+function compareMovementOrder(a: Movement, b: Movement): number {
+  const ta = Date.parse(a.timestamp);
+  const tb = Date.parse(b.timestamp);
+  if (ta !== tb) return ta - tb;
+  return a.id.localeCompare(b.id);
 }
+
+function needsLedgerBackfill(movements: Movement[]): boolean {
+  return movements.some((m) => m.quantity_before_base === undefined);
+}
+
+function backfillMovementLedger(
+  movements: Movement[],
+  products: Product[],
+  conversions: UnitConversion[],
+): Movement[] {
+  const byProduct = new Map<string, Movement[]>();
+  for (const m of movements) {
+    const list = byProduct.get(m.product_id) ?? [];
+    list.push(m);
+    byProduct.set(m.product_id, list);
+  }
+
+  const out = new Map<string, Movement>();
+  for (const m of movements) {
+    out.set(m.id, { ...normalizeMovement(m) });
+  }
+
+  for (const [, list] of byProduct) {
+    const ordered = [...list].sort(compareMovementOrder);
+    const product = products.find((p) => p.id === ordered[0]?.product_id);
+    if (!product) continue;
+    const ctx = conversionContextForProduct(product, conversions);
+    let stock = 0;
+    for (const m of ordered) {
+      const cur = out.get(m.id)!;
+      let qb = cur.quantity_base;
+      if (qb === undefined) {
+        try {
+          qb = quantityBaseForCreate(cur.type, cur.quantity, cur.unit, ctx);
+        } catch {
+          qb =
+            cur.unit === product.primary_unit
+              ? cur.quantity
+              : cur.quantity;
+        }
+      }
+      const r = applyMovement({
+        currentStockBase: stock,
+        type: cur.type,
+        quantityBase: qb,
+      });
+      cur.quantity_base = qb;
+      cur.signed_delta_base = r.signedDeltaBase;
+      cur.quantity_before_base = r.quantityBeforeBase;
+      cur.quantity_after_base = r.quantityAfterBase;
+      stock = r.nextStockBase;
+    }
+  }
+
+  return movements.map((m) => out.get(m.id)!);
+}
+
+function syncProductStockFromReplay(movements: Movement[], products: Product[]) {
+  const byProduct = new Map<string, Movement[]>();
+  for (const m of movements) {
+    const list = byProduct.get(m.product_id) ?? [];
+    list.push(m);
+    byProduct.set(m.product_id, list);
+  }
+  for (const p of products) {
+    const list = byProduct.get(p.id);
+    if (!list?.length) continue;
+    const slices = list.map((m) => ({
+      id: m.id,
+      capturedAt: m.timestamp,
+      type: m.type,
+      quantityBase: m.quantity_base ?? 0,
+    }));
+    const final = replayMovements(slices, { initialStockBase: 0 });
+    p.stock_quantity = final;
+  }
+}
+
+const LEGACY_INIT_KEY = "hw_store_v1";
 
 function initStore() {
   if (localStorage.getItem(INIT_KEY)) return;
   try {
-    localStorage.setItem("hw_products", JSON.stringify(mockProducts));
-    localStorage.setItem("hw_movements", JSON.stringify(mockMovements));
-    localStorage.setItem("hw_unit_conversions", JSON.stringify(mockConversions));
-    localStorage.setItem("hw_suppliers", JSON.stringify(mockSuppliers));
+    if (!localStorage.getItem(LEGACY_INIT_KEY)) {
+      localStorage.setItem("hw_products", JSON.stringify(mockProducts));
+      localStorage.setItem("hw_movements", JSON.stringify(mockMovements));
+      localStorage.setItem("hw_unit_conversions", JSON.stringify(mockConversions));
+      localStorage.setItem("hw_suppliers", JSON.stringify(mockSuppliers));
+      localStorage.setItem(LEGACY_INIT_KEY, "true");
+    }
     localStorage.setItem(INIT_KEY, "true");
   } catch (e) {
     console.error("Store init failed:", e);
@@ -133,9 +260,19 @@ export function saveProducts(products: Product[]) {
 }
 
 export function getMovements(): Movement[] {
-  return safeRead("hw_movements", mockMovements as Movement[]).map(
+  let list = safeRead("hw_movements", mockMovements as Movement[]).map(
     normalizeMovement,
   );
+  if (needsLedgerBackfill(list)) {
+    const products = getProducts();
+    const conversions = getConversions();
+    list = backfillMovementLedger(list, products, conversions);
+    saveMovements(list);
+    const updated = [...products];
+    syncProductStockFromReplay(list, updated);
+    saveProducts(updated);
+  }
+  return list;
 }
 
 export function saveMovements(movements: Movement[]) {
@@ -172,44 +309,103 @@ export function updateProductStock(productId: string, newQty: number) {
   return null;
 }
 
-export function addMovementAndUpdateStock(movement: Movement): { newStock: number } {
-  const normalizedMovement = normalizeMovement(movement);
+export function rebuildStockFromMovements(): void {
   const movements = getMovements();
-  movements.unshift(normalizedMovement);
+  const products = getProducts();
+  syncProductStockFromReplay(movements, products);
+  saveProducts(products);
+}
+
+/**
+ * Applies movement using the stock engine (base units), persists ledger snapshots, updates product stock.
+ */
+export function addMovementAndUpdateStock(movement: Movement): { newStock: number } {
+  getMovements();
+  const normalizedMovement = normalizeMovement(movement);
+  const products = getProducts();
+  const idx = products.findIndex(
+    (p) => p.id === normalizedMovement.product_id,
+  );
+  if (idx < 0) {
+    return { newStock: 0 };
+  }
+
+  const product = products[idx];
+  const ctx = conversionContextForProduct(product, getConversions());
+  let quantityBase: number;
+  try {
+    quantityBase = quantityBaseForCreate(
+      normalizedMovement.type,
+      normalizedMovement.quantity,
+      normalizedMovement.unit,
+      ctx,
+    );
+  } catch (e) {
+    if (normalizedMovement.quantity_base !== undefined) {
+      quantityBase = normalizedMovement.quantity_base;
+    } else if (normalizedMovement.unit === product.primary_unit) {
+      quantityBase = normalizedMovement.quantity;
+    } else {
+      throw e instanceof Error ? e : new Error(String(e));
+    }
+  }
+
+  const applied = applyMovement({
+    currentStockBase: product.stock_quantity,
+    type: normalizedMovement.type,
+    quantityBase,
+  });
+
+  const enriched: Movement = {
+    ...normalizedMovement,
+    quantity_base: quantityBase,
+    signed_delta_base: applied.signedDeltaBase,
+    quantity_before_base: applied.quantityBeforeBase,
+    quantity_after_base: applied.quantityAfterBase,
+  };
+
+  const movements = getMovements();
+  movements.unshift(enriched);
   saveMovements(movements);
 
-  const products = getProducts();
-  const idx = products.findIndex((p) => p.id === normalizedMovement.product_id);
-  let newStock = 0;
-  if (idx >= 0) {
-    products[idx].stock_quantity = applyMovementToStock(
-      products[idx].stock_quantity,
-      normalizedMovement,
-    );
+  products[idx].stock_quantity = applied.nextStockBase;
 
-    if (normalizedMovement.type === "delivery") {
-      const currentIncoming = products[idx].incoming_quantity ?? 0;
-      products[idx].incoming_quantity = Math.max(
-        0,
-        currentIncoming - normalizedMovement.quantity,
-      );
-    }
-    newStock = products[idx].stock_quantity;
-    saveProducts(products);
+  if (
+    normalizedMovement.type === "DELIVERY_RECEIVED" &&
+    products[idx].incoming_quantity != null
+  ) {
+    const currentIncoming = products[idx].incoming_quantity ?? 0;
+    products[idx].incoming_quantity = Math.max(
+      0,
+      currentIncoming - normalizedMovement.quantity,
+    );
   }
+
+  const newStock = products[idx].stock_quantity;
+  saveProducts(products);
   return { newStock };
 }
 
-export function addProduct(product: Product, conversions: UnitConversion[] = []) {
-  const products = getProducts();
-  products.push(normalizeProduct(product));
-  saveProducts(products);
-  if (conversions.length > 0) {
-    const existing = getConversions();
-    saveConversions([...existing, ...conversions]);
-  }
+export function assertMovementApply(
+  movement: Pick<Movement, "type" | "quantity" | "unit" | "product_id"> & {
+    quantity_base?: number;
+  },
+  product: Product,
+): void {
+  const ctx = conversionContextForProduct(product, getConversions());
+  const qb =
+    movement.quantity_base ??
+    quantityBaseForCreate(
+      normalizeMovementType(movement.type as string),
+      movement.quantity,
+      movement.unit,
+      ctx,
+    );
+  applyMovement({
+    currentStockBase: product.stock_quantity,
+    type: normalizeMovementType(movement.type as string),
+    quantityBase: qb,
+  });
 }
 
-export function getProductByBarcode(barcode: string): Product | null {
-  return getProducts().find((p) => p.barcode === barcode) ?? null;
-}
+export { sortMovementsForReplay, replayMovements, StockEngineError };

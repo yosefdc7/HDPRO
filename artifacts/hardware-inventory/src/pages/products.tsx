@@ -660,13 +660,14 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
     }
 
     const movement: Movement = {
-      id: `sm-${Date.now()}`,
-      type: action!,
+      id: crypto.randomUUID(),
+      type: action === "in" ? "PURCHASE_RECEIVED" : "SALE",
       product_id: product.id,
       product_name: product.name,
       quantity: n,
       unit: product.primary_unit,
-      note: note.trim() || (action === "in" ? "Stock In" : "Stock Out"),
+      reason: note.trim() || (action === "in" ? "Stock in" : "Stock out"),
+      note: note.trim(),
       by: currentUser.name.split(" ")[0],
       timestamp: new Date().toISOString(),
     };

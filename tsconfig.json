@@ -10,6 +10,9 @@
       "path": "./lib/stock-engine"
     },
     {
+      "path": "./lib/reorder-engine"
+    },
+    {
       "path": "./lib/db"
     },
     {

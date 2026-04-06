@@ -15,9 +15,9 @@ export type MovementUiMeta = {
 };
 
 export const MOVEMENT_UI_META: Record<MovementType, MovementUiMeta> = {
-  in: {
-    label: "Stock In",
-    shortLabel: "IN",
+  PURCHASE_RECEIVED: {
+    label: "Purchase received",
+    shortLabel: "PUR",
     emoji: "📥",
     direction: "in",
     badgeClass: "bg-green-100 text-green-700 border-green-200",
@@ -26,9 +26,9 @@ export const MOVEMENT_UI_META: Record<MovementType, MovementUiMeta> = {
     solidClass: "bg-green-600",
     dotClass: "bg-green-500",
   },
-  out: {
-    label: "Stock Out",
-    shortLabel: "OUT",
+  SALE: {
+    label: "Sale",
+    shortLabel: "SALE",
     emoji: "📤",
     direction: "out",
     badgeClass: "bg-blue-100 text-blue-700 border-blue-200",
@@ -37,7 +37,7 @@ export const MOVEMENT_UI_META: Record<MovementType, MovementUiMeta> = {
     solidClass: "bg-blue-600",
     dotClass: "bg-blue-500",
   },
-  adjustment: {
+  ADJUSTMENT: {
     label: "Adjustment",
     shortLabel: "ADJ",
     emoji: "🔄",
@@ -48,18 +48,7 @@ export const MOVEMENT_UI_META: Record<MovementType, MovementUiMeta> = {
     solidClass: "bg-amber-600",
     dotClass: "bg-amber-500",
   },
-  delivery: {
-    label: "Delivery",
-    shortLabel: "DEL",
-    emoji: "🚚",
-    direction: "in",
-    badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    textClass: "text-emerald-600",
-    iconBgClass: "bg-emerald-100 text-emerald-600",
-    solidClass: "bg-emerald-600",
-    dotClass: "bg-emerald-500",
-  },
-  damage: {
+  DAMAGE: {
     label: "Damage",
     shortLabel: "DMG",
     emoji: "🧯",
@@ -70,9 +59,9 @@ export const MOVEMENT_UI_META: Record<MovementType, MovementUiMeta> = {
     solidClass: "bg-rose-600",
     dotClass: "bg-rose-500",
   },
-  return: {
-    label: "Return",
-    shortLabel: "RTN",
+  RETURN_IN: {
+    label: "Return in",
+    shortLabel: "R+",
     emoji: "↩️",
     direction: "in",
     badgeClass: "bg-cyan-100 text-cyan-700 border-cyan-200",
@@ -81,16 +70,49 @@ export const MOVEMENT_UI_META: Record<MovementType, MovementUiMeta> = {
     solidClass: "bg-cyan-600",
     dotClass: "bg-cyan-500",
   },
-  transfer: {
-    label: "Transfer",
-    shortLabel: "TRF",
-    emoji: "🔁",
+  RETURN_OUT: {
+    label: "Return out",
+    shortLabel: "R−",
+    emoji: "↪️",
+    direction: "out",
+    badgeClass: "bg-sky-100 text-sky-700 border-sky-200",
+    textClass: "text-sky-600",
+    iconBgClass: "bg-sky-100 text-sky-600",
+    solidClass: "bg-sky-600",
+    dotClass: "bg-sky-500",
+  },
+  TRANSFER_IN: {
+    label: "Transfer in",
+    shortLabel: "T+",
+    emoji: "⏬",
+    direction: "in",
+    badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    textClass: "text-emerald-600",
+    iconBgClass: "bg-emerald-100 text-emerald-600",
+    solidClass: "bg-emerald-600",
+    dotClass: "bg-emerald-500",
+  },
+  TRANSFER_OUT: {
+    label: "Transfer out",
+    shortLabel: "T−",
+    emoji: "⏫",
     direction: "out",
     badgeClass: "bg-violet-100 text-violet-700 border-violet-200",
     textClass: "text-violet-600",
     iconBgClass: "bg-violet-100 text-violet-600",
     solidClass: "bg-violet-600",
     dotClass: "bg-violet-500",
+  },
+  DELIVERY_RECEIVED: {
+    label: "Delivery received",
+    shortLabel: "DEL",
+    emoji: "🚚",
+    direction: "in",
+    badgeClass: "bg-teal-100 text-teal-700 border-teal-200",
+    textClass: "text-teal-600",
+    iconBgClass: "bg-teal-100 text-teal-600",
+    solidClass: "bg-teal-600",
+    dotClass: "bg-teal-500",
   },
 };
 

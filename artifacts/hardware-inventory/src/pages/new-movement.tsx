@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Save, Plus } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Save, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { products, currentUser } from "@/lib/mock-data";
+import { currentUser } from "@/lib/mock-data";
+import { getProducts, addMovementAndUpdateStock, type MovementType } from "@/lib/store";
 
 export default function NewMovementPage() {
   const [, setLocation] = useLocation();
@@ -25,7 +26,10 @@ export default function NewMovementPage() {
     }
   }, []);
 
-  const [type, setType] = useState<"in" | "out" | "adjustment">("in");
+  const [type, setType] = useState<Extract<
+    MovementType,
+    "PURCHASE_RECEIVED" | "SALE" | "ADJUSTMENT"
+  >>("PURCHASE_RECEIVED");
   const [productId, setProductId] = useState(initialProductId);
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
@@ -37,32 +41,40 @@ export default function NewMovementPage() {
     }
   }, [initialProductId, productId]);
 
-  const selectedProduct = products.find(p => p.id === productId);
+  const products = getProducts();
+  const selectedProduct = products.find((p) => p.id === productId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productId || !quantity || isNaN(Number(quantity))) return;
+    const n = Number(quantity);
+    if (!productId || quantity === "" || Number.isNaN(n)) return;
+    if (type !== "ADJUSTMENT" && n <= 0) return;
+    if (type === "ADJUSTMENT" && n === 0) return;
 
-    const newMovement = {
-      id: `sm-local-${Date.now()}`,
+    const reason =
+      note.trim() ||
+      (type === "PURCHASE_RECEIVED"
+        ? "Received stock"
+        : type === "SALE"
+          ? "Issued stock"
+          : "Inventory adjustment");
+
+    addMovementAndUpdateStock({
+      id: crypto.randomUUID(),
       type,
       product_id: productId,
       product_name: selectedProduct?.name || "Unknown Product",
-      quantity: Number(quantity),
+      quantity: n,
       unit: selectedProduct?.primary_unit || "unit",
-      note: note || (type === "in" ? "Received stock" : type === "out" ? "Issued stock" : "Inventory adjustment"),
-      by: currentUser.name.split(' ')[0],
-      timestamp: new Date().toISOString()
-    };
-
-    // Save to localStorage
-    const local = localStorage.getItem("hw_movements");
-    const existing = local ? JSON.parse(local) : [];
-    localStorage.setItem("hw_movements", JSON.stringify([newMovement, ...existing]));
+      reason,
+      note: note.trim(),
+      by: currentUser.name.split(" ")[0],
+      timestamp: new Date().toISOString(),
+    });
 
     toast({
       title: "Movement Recorded",
-      description: `Successfully recorded ${type.toUpperCase()} movement for ${newMovement.product_name}.`,
+      description: `Successfully recorded ${type} for ${selectedProduct?.name ?? "product"}.`,
       variant: "default",
     });
 
@@ -87,15 +99,26 @@ export default function NewMovementPage() {
             {/* Movement Type */}
             <div className="space-y-4">
               <Label className="text-base font-bold text-slate-900">Movement Type</Label>
-              <RadioGroup 
-                value={type} 
-                onValueChange={(val: any) => setType(val)}
+              <RadioGroup
+                value={type}
+                onValueChange={(val) =>
+                  setType(
+                    val as Extract<
+                      MovementType,
+                      "PURCHASE_RECEIVED" | "SALE" | "ADJUSTMENT"
+                    >,
+                  )
+                }
                 className="grid grid-cols-3 gap-3"
               >
                 <div>
-                  <RadioGroupItem value="in" id="in" className="peer sr-only" />
-                  <Label 
-                    htmlFor="in" 
+                  <RadioGroupItem
+                    value="PURCHASE_RECEIVED"
+                    id="PURCHASE_RECEIVED"
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor="PURCHASE_RECEIVED"
                     className="flex flex-col items-center justify-center p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 peer-data-[state=checked]:border-green-600 peer-data-[state=checked]:bg-green-50 peer-data-[state=checked]:text-green-700 transition-all"
                   >
                     <Plus className="h-6 w-6 mb-2" />
@@ -104,9 +127,9 @@ export default function NewMovementPage() {
                   </Label>
                 </div>
                 <div>
-                  <RadioGroupItem value="out" id="out" className="peer sr-only" />
-                  <Label 
-                    htmlFor="out" 
+                  <RadioGroupItem value="SALE" id="SALE" className="peer sr-only" />
+                  <Label
+                    htmlFor="SALE"
                     className="flex flex-col items-center justify-center p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 peer-data-[state=checked]:text-blue-700 transition-all"
                   >
                     <ArrowLeft className="h-6 w-6 mb-2 -rotate-45" />
@@ -115,9 +138,13 @@ export default function NewMovementPage() {
                   </Label>
                 </div>
                 <div>
-                  <RadioGroupItem value="adjustment" id="adjustment" className="peer sr-only" />
-                  <Label 
-                    htmlFor="adjustment" 
+                  <RadioGroupItem
+                    value="ADJUSTMENT"
+                    id="ADJUSTMENT"
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor="ADJUSTMENT"
                     className="flex flex-col items-center justify-center p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 peer-data-[state=checked]:border-amber-500 peer-data-[state=checked]:bg-amber-50 peer-data-[state=checked]:text-amber-700 transition-all"
                   >
                     <ArrowUpDown className="h-6 w-6 mb-2" />
@@ -154,11 +181,10 @@ export default function NewMovementPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="qty" className="font-bold">Quantity</Label>
-                <Input 
-                  id="qty" 
-                  type="number" 
-                  min="1"
-                  placeholder="0"
+                <Input
+                  id="qty"
+                  type="number"
+                  placeholder={type === "ADJUSTMENT" ? "e.g. -3 or 5" : "0"}
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="h-12 text-lg font-bold border-slate-200"

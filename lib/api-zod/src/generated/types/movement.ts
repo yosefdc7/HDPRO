@@ -5,14 +5,24 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MovementSyncStatus } from "./movementSyncStatus";
 import type { MovementType } from "./movementType";
 
 export interface Movement {
   id: string;
   productId: string;
   type: MovementType;
-  quantity: number;
-  unit: string;
+  /** Magnitude in primary (base) units, or signed delta for ADJUSTMENT */
+  quantityBase: number;
+  signedDeltaBase: number;
+  quantityBeforeBase: number;
+  quantityAfterBase: number;
+  /** Original entry unit when converted to base */
+  sourceUnit?: string;
+  reason: string;
   notes?: string;
-  capturedAt: string;
+  actorUserId: string;
+  capturedAt: Date;
+  syncStatus?: MovementSyncStatus;
+  createdAt?: Date;
 }
