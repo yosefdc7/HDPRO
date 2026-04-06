@@ -12,6 +12,8 @@ export type CreateMovementParsed = z.infer<typeof CreateMovementBody>;
 
 export type StockMovementRow = typeof movementsTable.$inferSelect;
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 function isUniqueViolation(err: unknown): boolean {
   return (
     typeof err === "object" &&
@@ -60,76 +62,88 @@ function assertIntegerQuantityBase(
   }
 }
 
+/**
+ * Like {@link createStockMovement} but participates in an outer transaction
+ * (e.g. delivery post + ledger + PO updates).
+ */
+export async function createStockMovementInTransaction(
+  tx: DbTransaction,
+  input: CreateMovementParsed,
+): Promise<{ movement: StockMovementRow; status: 200 | 201 }> {
+  assertIntegerQuantityBase(input.type as StockMovementType, input.quantityBase);
+  const existingRows = await tx
+    .select()
+    .from(movementsTable)
+    .where(eq(movementsTable.id, input.id))
+    .limit(1);
+  const existing = existingRows[0];
+  if (existing) {
+    return { movement: existing, status: 200 as const };
+  }
+
+  const locked = await tx
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.id, input.productId))
+    .for("update")
+    .limit(1);
+  const product = locked[0];
+  if (!product) {
+    throw Object.assign(new Error("PRODUCT_NOT_FOUND"), { code: "PRODUCT_NOT_FOUND" });
+  }
+  if (!product.isActive) {
+    throw Object.assign(new Error("PRODUCT_INACTIVE"), { code: "PRODUCT_INACTIVE" });
+  }
+
+  const applied = applyMovement({
+    currentStockBase: product.stockQuantity,
+    type: input.type as StockMovementType,
+    quantityBase: input.quantityBase,
+  });
+
+  await tx.insert(movementsTable).values({
+    id: input.id,
+    productId: input.productId,
+    type: input.type as StockMovementType,
+    quantityBase: input.quantityBase,
+    signedDeltaBase: applied.signedDeltaBase,
+    quantityBeforeBase: applied.quantityBeforeBase,
+    quantityAfterBase: applied.quantityAfterBase,
+    sourceUnit: input.sourceUnit ?? null,
+    reason: input.reason,
+    notes: input.notes ?? null,
+    actorUserId: input.actorUserId,
+    capturedAt: input.capturedAt,
+    syncStatus: input.syncStatus ?? "synced",
+  });
+
+  await tx
+    .update(productsTable)
+    .set({
+      stockQuantity: applied.nextStockBase,
+      updatedAt: new Date(),
+    })
+    .where(eq(productsTable.id, input.productId));
+
+  const inserted = await tx
+    .select()
+    .from(movementsTable)
+    .where(eq(movementsTable.id, input.id))
+    .limit(1);
+  const row = inserted[0];
+  if (!row) {
+    throw new Error("MOVEMENT_INSERT_MISSING");
+  }
+  return { movement: row, status: 201 as const };
+}
+
 export async function createStockMovement(
   input: CreateMovementParsed,
 ): Promise<{ movement: StockMovementRow; status: 200 | 201 }> {
   assertIntegerQuantityBase(input.type as StockMovementType, input.quantityBase);
   try {
     return await db.transaction(async (tx) => {
-      const existingRows = await tx
-        .select()
-        .from(movementsTable)
-        .where(eq(movementsTable.id, input.id))
-        .limit(1);
-      const existing = existingRows[0];
-      if (existing) {
-        return { movement: existing, status: 200 as const };
-      }
-
-      const locked = await tx
-        .select()
-        .from(productsTable)
-        .where(eq(productsTable.id, input.productId))
-        .for("update")
-        .limit(1);
-      const product = locked[0];
-      if (!product) {
-        throw Object.assign(new Error("PRODUCT_NOT_FOUND"), { code: "PRODUCT_NOT_FOUND" });
-      }
-      if (!product.isActive) {
-        throw Object.assign(new Error("PRODUCT_INACTIVE"), { code: "PRODUCT_INACTIVE" });
-      }
-
-      const applied = applyMovement({
-        currentStockBase: product.stockQuantity,
-        type: input.type as StockMovementType,
-        quantityBase: input.quantityBase,
-      });
-
-      await tx.insert(movementsTable).values({
-        id: input.id,
-        productId: input.productId,
-        type: input.type as StockMovementType,
-        quantityBase: input.quantityBase,
-        signedDeltaBase: applied.signedDeltaBase,
-        quantityBeforeBase: applied.quantityBeforeBase,
-        quantityAfterBase: applied.quantityAfterBase,
-        sourceUnit: input.sourceUnit ?? null,
-        reason: input.reason,
-        notes: input.notes ?? null,
-        actorUserId: input.actorUserId,
-        capturedAt: input.capturedAt,
-        syncStatus: input.syncStatus ?? "synced",
-      });
-
-      await tx
-        .update(productsTable)
-        .set({
-          stockQuantity: applied.nextStockBase,
-          updatedAt: new Date(),
-        })
-        .where(eq(productsTable.id, input.productId));
-
-      const inserted = await tx
-        .select()
-        .from(movementsTable)
-        .where(eq(movementsTable.id, input.id))
-        .limit(1);
-      const row = inserted[0];
-      if (!row) {
-        throw new Error("MOVEMENT_INSERT_MISSING");
-      }
-      return { movement: row, status: 201 as const };
+      return createStockMovementInTransaction(tx, input);
     });
   } catch (err) {
     if (isUniqueViolation(err)) {

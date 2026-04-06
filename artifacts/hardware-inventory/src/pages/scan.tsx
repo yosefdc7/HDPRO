@@ -17,7 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useOffline } from "@/lib/offline-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { getProductInventoryInsight, getStockHealthLabel } from "@/lib/inventory-insights";
 
 function StockActionModal({
   open,
@@ -121,14 +121,7 @@ function ProductResultCard({
       : insight.health === "overstock"
       ? "text-xs bg-violet-100 text-violet-700 border-violet-200 shadow-none"
       : "text-xs bg-green-100 text-green-700 border-green-200 shadow-none";
-  const stockLabel =
-    insight.health === "critical"
-      ? "Critical Stock"
-      : insight.health === "low"
-      ? "Low Stock"
-      : insight.health === "overstock"
-      ? "Overstock"
-      : "Healthy Stock";
+  const stockLabel = getStockHealthLabel(insight.health);
 
   return (
     <div className="animate-in slide-in-from-bottom-8 duration-500 bg-white rounded-2xl shadow-2xl p-5 space-y-4 border border-slate-100">

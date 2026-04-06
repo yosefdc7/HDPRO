@@ -88,6 +88,7 @@ export default function ProductDetailPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [unitConversions, setUnitConversions] = useState<UnitConversion[]>([]);
   const [stockMovements, setStockMovements] = useState<Movement[]>([]);
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   useEffect(() => {
     setProducts(getProducts());
@@ -118,8 +119,6 @@ export default function ProductDetailPage() {
     () => (product ? resolveSupplierForProduct(product, suppliers) : null),
     [product, suppliers],
   );
-
-  const [notesExpanded, setNotesExpanded] = useState(false);
 
   const conversionRows = useMemo(() => {
     if (!product) {
@@ -193,25 +192,6 @@ export default function ProductDetailPage() {
   const notesText = (product.notes ?? "").trim();
   const notesLong = notesText.length > 220;
 
-  const conversionRows = useMemo(() => {
-    const primary = product.primary_unit;
-    const baseRow = {
-      id: `base-${primary}`,
-      displayUnit: primary,
-      baseMultiple: 1,
-      detail: "Base unit",
-    };
-    const alt = conversions
-      .filter((c) => c.to_unit === primary && c.factor > 0)
-      .map((c) => ({
-        id: c.id,
-        displayUnit: c.from_unit,
-        baseMultiple: c.factor,
-        detail: `1 ${c.from_unit} = ${c.factor} ${primary}`,
-      }));
-    return [baseRow, ...alt];
-  }, [conversions, product.primary_unit]);
-
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-24 md:pb-12 max-w-6xl mx-auto">
       {/* Header — mobile-first */}
@@ -224,7 +204,7 @@ export default function ProductDetailPage() {
               className="rounded-full bg-white shadow-sm border border-slate-200 text-slate-600 hover:text-slate-900 shrink-0 touch-manipulation"
               aria-label="Back to products"
             >
-              <_arrow_left_fix />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div className="flex gap-3 min-w-0 flex-1">

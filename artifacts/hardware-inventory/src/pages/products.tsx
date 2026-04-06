@@ -41,7 +41,7 @@ import {
   type Movement,
   type UnitConversion,
 } from "@/lib/store";
-import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { getProductInventoryInsight, getStockHealthLabel } from "@/lib/inventory-insights";
 import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
 import { formatPeso, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -62,10 +62,7 @@ function getStockStatus(p: Product) {
 }
 
 function getStatusLabel(status: ReturnType<typeof getStockStatus>) {
-  if (status === "critical") return "Critical Stock";
-  if (status === "low") return "Low Stock";
-  if (status === "overstock") return "Overstock";
-  return "Healthy Stock";
+  return getStockHealthLabel(status);
 }
 
 function getStatusTextClass(status: ReturnType<typeof getStockStatus>) {
@@ -125,7 +122,7 @@ function getUniqueValues(col: ColKey, products: Product[]): string[] {
   products.forEach((p) => set.add(getColumnDisplayValue(col, p)));
   const arr = Array.from(set);
   if (col === "status") {
-    const order = ["Critical Stock", "Low Stock", "Healthy Stock", "Overstock"];
+    const order = ["Critical", "Low stock", "In stock", "Overstock"];
     return order.filter((v) => arr.includes(v));
   }
   if (col === "stock_quantity") {
