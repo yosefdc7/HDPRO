@@ -34,12 +34,14 @@ import {
   type Product,
   type UnitConversion,
 } from "@/lib/store";
+import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
+import { getProductInventoryInsight } from "@/lib/inventory-insights";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 20;
 
-type TypeFilter = "all" | "in" | "out" | "adjustment";
+type TypeFilter = "all" | Movement["type"];
 type DateFilter = "today" | "week" | "month" | "all";
 
 function relativeTime(ts: string): string {
@@ -125,11 +127,29 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
   const [productSearch, setProductSearch] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [movementType, setMovementType] = useState<"in" | "out" | "adjustment">("in");
+  const [movementType, setMovementType] = useState<Movement["type"]>("in");
   const [quantity, setQuantity] = useState(1);
   const [selectedUnit, setSelectedUnit] = useState("");
   const [note, setNote] = useState("");
   const [qtyError, setQtyError] = useState("");
+  const movementTypeOptions: Movement["type"][] = [
+    "in",
+    "out",
+    "adjustment",
+    "delivery",
+    "damage",
+    "return",
+    "transfer",
+  ];
+  const defaultNoteByType: Record<Movement["type"], string> = {
+    in: "Stock In",
+    out: "Stock Out",
+    adjustment: "Adjustment",
+    delivery: "Supplier Delivery",
+    damage: "Damaged Inventory",
+    return: "Customer Return",
+    transfer: "Branch Transfer",
+  };
 
   useEffect(() => {
     if (open) {
@@ -203,11 +223,16 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
 
   function validateAndConfirm() {
     setQtyError("");
-    if (quantity <= 0) {
+    if (movementType === "adjustment") {
+      if (quantity === 0) {
+        setQtyError("Adjustment quantity cannot be zero");
+        return;
+      }
+    } else if (quantity <= 0) {
       setQtyError("Quantity must be greater than 0");
       return;
     }
-    if (movementType === "out" && selectedProduct) {
+    if (MOVEMENT_UI_META[movementType].direction === "out" && selectedProduct) {
       const outQty = conversionPreview ? conversionPreview.converted : quantity;
       if (outQty > selectedProduct.stock_quantity) {
         setQtyError(`Cannot exceed current stock (${selectedProduct.stock_quantity} ${selectedProduct.primary_unit})`);
@@ -229,7 +254,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
       product_name: selectedProduct.name,
       quantity: actualQty,
       unit: actualUnit,
-      note: note.trim() || (movementType === "in" ? "Stock In" : movementType === "out" ? "Stock Out" : "Adjustment"),
+      note: note.trim() || defaultNoteByType[movementType],
       by: currentUser.name.split(" ")[0],
       timestamp: new Date().toISOString(),
     };
@@ -239,16 +264,12 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
     if (isOffline) {
       toast({ title: "Saved locally!", description: "Movement saved to your device. It will sync when you're back online.", variant: "success" });
     } else {
-      toast({ title: "Movement recorded!", description: `${movement.quantity} ${movement.unit} ${movementType === "in" ? "added to" : movementType === "out" ? "removed from" : "adjusted for"} ${selectedProduct.name}.`, variant: "success" });
+      const direction = MOVEMENT_UI_META[movementType].direction;
+      const verb = direction === "in" ? "added to" : direction === "out" ? "removed from" : "recorded for";
+      toast({ title: "Movement recorded!", description: `${movement.quantity} ${movement.unit} ${verb} ${selectedProduct.name}.`, variant: "success" });
     }
     onClose();
   }
-
-  const typeConfig = {
-    in: { label: "📥 Stock In", color: "bg-green-600", textColor: "text-green-700", bg: "bg-green-50" },
-    out: { label: "📤 Stock Out", color: "bg-red-600", textColor: "text-red-700", bg: "bg-red-50" },
-    adjustment: { label: "🔄 Adjustment", color: "bg-blue-600", textColor: "text-blue-700", bg: "bg-blue-50" },
-  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -285,8 +306,15 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
                 ) : (
                   filteredProducts.map((p) => {
                     const cat = categories.find((c) => c.id === p.category_id);
-                    const isOut = p.stock_quantity === 0;
-                    const isLow = p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level;
+                    const insight = getProductInventoryInsight(p);
+                    const stockClass =
+                      insight.health === "critical"
+                        ? "text-red-600"
+                        : insight.health === "low"
+                        ? "text-amber-600"
+                        : insight.health === "overstock"
+                        ? "text-violet-600"
+                        : "text-green-600";
                     return (
                       <button
                         key={p.id}
@@ -300,7 +328,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
                           <p className="text-xs text-slate-500">{p.sku} · {cat?.name}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className={cn("text-xs font-bold", isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-green-600")}>
+                          <p className={cn("text-xs font-bold", stockClass)}>
                             {p.stock_quantity} {p.primary_unit}
                           </p>
                         </div>
@@ -340,20 +368,20 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
 
             <div>
               <Label className="text-sm font-medium text-slate-700 mb-2 block">Movement Type</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {(["in", "out", "adjustment"] as const).map((t) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {movementTypeOptions.map((t) => (
                   <button
                     key={t}
                     onClick={() => setMovementType(t)}
                     className={cn(
                       "py-2 px-1 rounded-lg text-xs font-semibold border-2 transition-all text-center",
                       movementType === t
-                        ? `${typeConfig[t].color} text-white border-transparent`
+                        ? `${MOVEMENT_UI_META[t].solidClass} text-white border-transparent`
                         : "border-slate-200 text-slate-600 hover:border-slate-300 bg-white"
                     )}
                     data-testid={`movement-type-${t}`}
                   >
-                    {typeConfig[t].label}
+                    {MOVEMENT_UI_META[t].emoji} {MOVEMENT_UI_META[t].label}
                   </button>
                 ))}
               </div>
@@ -366,14 +394,18 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  onClick={() =>
+                    setQuantity((q) =>
+                      movementType === "adjustment" ? q - 1 : Math.max(1, q - 1),
+                    )
+                  }
                   className="h-10 w-10 flex-shrink-0"
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
                 <Input
                   type="number"
-                  min="1"
+                  min={movementType === "adjustment" ? undefined : 1}
                   value={quantity}
                   onChange={(e) => { setQuantity(Number(e.target.value)); setQtyError(""); }}
                   className={cn("text-center text-lg font-bold", qtyError && "border-red-400")}
@@ -416,7 +448,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
               <Input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={movementType === "in" ? "Supplier delivery..." : movementType === "out" ? "Walk-in sale..." : "Recount adjustment..."}
+                placeholder={defaultNoteByType[movementType]}
                 data-testid="note-input"
               />
             </div>
@@ -442,7 +474,7 @@ function RecordMovementModal({ open, onClose, initialProduct, onRecorded }: Reco
                   </div>
                 </div>
                 {[
-                  { label: "Type", value: <Badge className={cn("text-white text-xs", typeConfig[movementType].color)}>{typeConfig[movementType].label}</Badge> },
+                  { label: "Type", value: <Badge className={cn("text-white text-xs", MOVEMENT_UI_META[movementType].solidClass)}>{MOVEMENT_UI_META[movementType].emoji} {MOVEMENT_UI_META[movementType].label}</Badge> },
                   { label: "Quantity", value: <span className="font-bold">{quantity} {selectedUnit}{conversionPreview ? ` (= ${conversionPreview.converted} ${conversionPreview.to_unit})` : ""}</span> },
                   { label: "Note", value: note || "(none)" },
                   { label: "Recorded by", value: currentUser.name },
@@ -532,6 +564,10 @@ export default function MovementsPage() {
     { key: "in", label: "Stock In", icon: "📥" },
     { key: "out", label: "Stock Out", icon: "📤" },
     { key: "adjustment", label: "Adjustments", icon: "🔄" },
+    { key: "delivery", label: "Deliveries", icon: "🚚" },
+    { key: "damage", label: "Damage", icon: "🧯" },
+    { key: "return", label: "Returns", icon: "↩️" },
+    { key: "transfer", label: "Transfers", icon: "🔁" },
   ];
 
   const dateFilterOptions: { key: DateFilter; label: string }[] = [
@@ -648,8 +684,9 @@ export default function MovementsPage() {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {group.items.map((m) => {
-                    const isIn = m.type === "in";
-                    const isAdj = m.type === "adjustment";
+                    const movementMeta = MOVEMENT_UI_META[m.type];
+                    const isInbound = movementMeta.direction === "in";
+                    const isNeutral = movementMeta.direction === "neutral";
                     const isExpanded = expandedId === m.id;
                     return (
                       <div
@@ -661,17 +698,17 @@ export default function MovementsPage() {
                         <div className="flex items-center gap-3 px-4 py-3">
                           <div className={cn(
                             "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center",
-                            isIn ? "bg-green-100 text-green-600" : isAdj ? "bg-blue-100 text-blue-600" : "bg-red-100 text-red-600"
+                            movementMeta.iconBgClass
                           )}>
-                            {isIn ? <ArrowUpCircle className="h-5 w-5" /> : isAdj ? <RefreshCw className="h-4 w-4" /> : <ArrowDownCircle className="h-5 w-5" />}
+                            {isInbound ? <ArrowUpCircle className="h-5 w-5" /> : isNeutral ? <RefreshCw className="h-4 w-4" /> : <ArrowDownCircle className="h-5 w-5" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-900 text-sm truncate">{m.product_name}</p>
                             <p className="text-xs text-slate-400 truncate">{m.note}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className={cn("text-sm font-bold", isIn ? "text-green-600" : isAdj ? "text-blue-600" : "text-red-600")}>
-                              {isIn ? "+" : isAdj ? "±" : "-"}{Math.abs(m.quantity)} {m.unit}
+                            <p className={cn("text-sm font-bold", movementMeta.textClass)}>
+                              {getMovementDisplaySign(m.type)}{Math.abs(m.quantity)} {m.unit}
                             </p>
                             <p className="text-xs text-slate-400">{relativeTime(m.timestamp)}</p>
                           </div>

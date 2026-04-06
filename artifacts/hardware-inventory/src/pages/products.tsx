@@ -41,6 +41,8 @@ import {
   type Movement,
   type UnitConversion,
 } from "@/lib/store";
+import { getProductInventoryInsight } from "@/lib/inventory-insights";
+import { MOVEMENT_UI_META, getMovementDisplaySign } from "@/lib/movement-config";
 import { formatPeso, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -56,9 +58,28 @@ interface ColumnFilterState {
 type ColumnFilters = Partial<Record<ColKey, ColumnFilterState>>;
 
 function getStockStatus(p: Product) {
-  if (p.stock_quantity === 0) return "out";
-  if (p.stock_quantity <= p.reorder_level) return "low";
-  return "ok";
+  return getProductInventoryInsight(p).health;
+}
+
+function getStatusLabel(status: ReturnType<typeof getStockStatus>) {
+  if (status === "critical") return "Critical Stock";
+  if (status === "low") return "Low Stock";
+  if (status === "overstock") return "Overstock";
+  return "Healthy Stock";
+}
+
+function getStatusTextClass(status: ReturnType<typeof getStockStatus>) {
+  if (status === "critical") return "text-red-600";
+  if (status === "low") return "text-amber-600";
+  if (status === "overstock") return "text-violet-600";
+  return "text-green-600";
+}
+
+function getStatusBadgeClass(status: ReturnType<typeof getStockStatus>) {
+  if (status === "critical") return "bg-red-100 text-red-700 border-red-200";
+  if (status === "low") return "bg-amber-100 text-amber-700 border-amber-200";
+  if (status === "overstock") return "bg-violet-100 text-violet-700 border-violet-200";
+  return "bg-green-100 text-green-700 border-green-200";
 }
 
 function getColumnDisplayValue(col: ColKey, p: Product): string {
@@ -73,8 +94,7 @@ function getColumnDisplayValue(col: ColKey, p: Product): string {
     case "cost_price": return formatPeso(p.cost_price);
     case "selling_price": return formatPeso(p.selling_price);
     case "status": {
-      const s = getStockStatus(p);
-      return s === "out" ? "Out of Stock" : s === "low" ? "Low Stock" : "In Stock";
+      return getStatusLabel(getStockStatus(p));
     }
   }
 }
@@ -92,7 +112,10 @@ function getSortValue(col: ColKey, p: Product): string | number {
     case "selling_price": return p.selling_price;
     case "status": {
       const s = getStockStatus(p);
-      return s === "ok" ? 0 : s === "low" ? 1 : 2;
+      if (s === "critical") return 0;
+      if (s === "low") return 1;
+      if (s === "healthy") return 2;
+      return 3;
     }
   }
 }
@@ -102,7 +125,7 @@ function getUniqueValues(col: ColKey, products: Product[]): string[] {
   products.forEach((p) => set.add(getColumnDisplayValue(col, p)));
   const arr = Array.from(set);
   if (col === "status") {
-    const order = ["In Stock", "Low Stock", "Out of Stock"];
+    const order = ["Critical Stock", "Low Stock", "Healthy Stock", "Overstock"];
     return order.filter((v) => arr.includes(v));
   }
   if (col === "stock_quantity") {
@@ -377,6 +400,7 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
   const [categoryId, setCategoryId] = useState(categories[0].id);
   const [unit, setUnit] = useState("piece");
   const [stock, setStock] = useState("");
+  const [incomingStock, setIncomingStock] = useState("0");
   const [reorderLevel, setReorderLevel] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
@@ -414,6 +438,9 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
     if (!name.trim()) errs.name = "Product name is required";
     if (!sku.trim()) errs.sku = "SKU is required";
     if (!stock || isNaN(Number(stock)) || Number(stock) < 0) errs.stock = "Valid stock required";
+    if (!incomingStock || isNaN(Number(incomingStock)) || Number(incomingStock) < 0) {
+      errs.incomingStock = "Incoming stock must be 0 or greater";
+    }
     if (!reorderLevel || isNaN(Number(reorderLevel)) || Number(reorderLevel) < 0) errs.reorderLevel = "Valid reorder level required";
     if (!costPrice || isNaN(Number(costPrice)) || Number(costPrice) <= 0) errs.costPrice = "Valid cost price required";
     if (!sellingPrice || isNaN(Number(sellingPrice)) || Number(sellingPrice) <= 0) errs.sellingPrice = "Valid selling price required";
@@ -436,6 +463,7 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
       barcode: barcode.trim() || undefined,
       primary_unit: unit,
       stock_quantity: Number(stock),
+      incoming_quantity: Number(incomingStock),
       reorder_level: Number(reorderLevel),
       cost_price: Number(costPrice),
       selling_price: Number(sellingPrice),
@@ -465,7 +493,7 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
 
   function handleClose() {
     setName(""); setSku(""); setBarcode(""); setCategoryId(categories[0].id);
-    setUnit("piece"); setStock(""); setReorderLevel(""); setCostPrice(""); setSellingPrice("");
+    setUnit("piece"); setStock(""); setIncomingStock("0"); setReorderLevel(""); setCostPrice(""); setSellingPrice("");
     setConversions([]); setErrors({});
     onClose();
   }
@@ -516,11 +544,16 @@ function AddProductModal({ open, onClose, onSave, initialBarcode = "" }: AddProd
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="prod-stock" className="text-sm font-medium text-slate-700 mb-1 block">Initial Stock *</Label>
               <Input id="prod-stock" type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" data-testid="prod-stock-input" className={cn(errors.stock && "border-red-400")} />
               {errors.stock && <p className="text-xs text-red-500 mt-1">{errors.stock}</p>}
+            </div>
+            <div>
+              <Label htmlFor="prod-incoming" className="text-sm font-medium text-slate-700 mb-1 block">Incoming Stock</Label>
+              <Input id="prod-incoming" type="number" min="0" value={incomingStock} onChange={(e) => setIncomingStock(e.target.value)} placeholder="0" data-testid="prod-incoming-input" className={cn(errors.incomingStock && "border-red-400")} />
+              {errors.incomingStock && <p className="text-xs text-red-500 mt-1">{errors.incomingStock}</p>}
             </div>
             <div>
               <Label htmlFor="prod-reorder" className="text-sm font-medium text-slate-700 mb-1 block">Reorder Level *</Label>
@@ -670,8 +703,11 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
 
   const category = categories.find((c) => c.id === product.category_id);
   const conversions = allConversions.filter((uc) => uc.product_id === product.id);
-  const isOut = product.stock_quantity === 0;
-  const isLow = product.stock_quantity > 0 && product.stock_quantity <= product.reorder_level;
+  const insight = getProductInventoryInsight(product);
+  const status = getStockStatus(product);
+  const statusLabel = getStatusLabel(status);
+  const statusTextClass = getStatusTextClass(status);
+  const statusBadgeClass = getStatusBadgeClass(status);
   const markup = product.cost_price > 0
     ? (((product.selling_price - product.cost_price) / product.cost_price) * 100).toFixed(1)
     : "0";
@@ -690,9 +726,7 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
               <h2 className="font-bold text-slate-900 leading-tight">{product.name}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Badge variant="secondary" className="text-xs font-mono bg-slate-100">{product.sku}</Badge>
-                {isOut && <Badge className="text-xs bg-red-100 text-red-700 border-red-200 shadow-none">Out of Stock</Badge>}
-                {isLow && !isOut && <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200 shadow-none">Low Stock</Badge>}
-                {!isOut && !isLow && <Badge className="text-xs bg-green-100 text-green-700 border-green-200 shadow-none">In Stock</Badge>}
+                <Badge className={cn("text-xs shadow-none", statusBadgeClass)}>{statusLabel}</Badge>
               </div>
             </div>
           </div>
@@ -708,7 +742,8 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
               { label: "Unit", value: product.primary_unit },
               { label: "Cost Price", value: formatPeso(product.cost_price) },
               { label: "Selling Price", value: formatPeso(product.selling_price), highlight: true },
-              { label: "Current Stock", value: `${product.stock_quantity} ${product.primary_unit}`, stockColor: isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-green-600" },
+              { label: "Current Stock", value: `${insight.onHandQuantity} ${product.primary_unit}`, stockColor: statusTextClass },
+              { label: "Incoming", value: `${insight.incomingQuantity} ${product.primary_unit}` },
               { label: "Markup", value: `${markup}%`, greenText: true },
             ].map((item) => (
               <div key={item.label} className="bg-slate-50 rounded-lg p-3">
@@ -725,7 +760,7 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
               <Button onClick={() => setAction("in")} className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2" data-testid="stock-in-btn">
                 <ArrowUpCircle className="h-4 w-4" /> Stock In
               </Button>
-              <Button onClick={() => setAction("out")} variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50 gap-2" data-testid="stock-out-btn" disabled={isOut}>
+              <Button onClick={() => setAction("out")} variant="outline" className="flex-1 border-red-200 text-red-700 hover:bg-red-50 gap-2" data-testid="stock-out-btn" disabled={insight.onHandQuantity === 0}>
                 <ArrowDownCircle className="h-4 w-4" /> Stock Out
               </Button>
             </div>
@@ -776,11 +811,11 @@ function ProductSlideover({ product, allConversions, onClose, onStockUpdated }: 
                 {recentMovements.map((m) => (
                   <div key={m.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2 border border-slate-100" data-testid={`slideover-movement-${m.id}`}>
                     <div className="flex items-center gap-2">
-                      <span className={cn("w-2 h-2 rounded-full flex-shrink-0", m.type === "in" ? "bg-green-500" : m.type === "out" ? "bg-red-500" : "bg-blue-500")} />
+                      <span className={cn("w-2 h-2 rounded-full flex-shrink-0", MOVEMENT_UI_META[m.type].dotClass)} />
                       <span className="text-slate-700 truncate max-w-[160px]">{m.note}</span>
                     </div>
-                    <span className={cn("font-bold ml-2 flex-shrink-0", m.type === "in" ? "text-green-600" : m.type === "out" ? "text-red-600" : "text-blue-600")}>
-                      {m.type === "out" ? "-" : "+"}{Math.abs(m.quantity)} {m.unit}
+                    <span className={cn("font-bold ml-2 flex-shrink-0", MOVEMENT_UI_META[m.type].textClass)}>
+                      {getMovementDisplaySign(m.type)}{Math.abs(m.quantity)} {m.unit}
                     </span>
                   </div>
                 ))}
@@ -1045,20 +1080,16 @@ export default function ProductsPage() {
                           {cat?.icon} {cat?.name}
                         </span>
                       </td>
-                      <td className={cn("px-4 py-2.5 text-right font-bold tabular-nums", status === "out" ? "text-red-600" : status === "low" ? "text-amber-600" : "text-slate-800")}>
+                      <td className={cn("px-4 py-2.5 text-right font-bold tabular-nums", getStatusTextClass(status))}>
                         {product.stock_quantity}
                       </td>
                       <td className="px-4 py-2.5 text-slate-600 text-xs">{product.primary_unit}</td>
                       <td className="px-4 py-2.5 text-right text-slate-600 tabular-nums">{formatPeso(product.cost_price)}</td>
                       <td className="px-4 py-2.5 text-right font-semibold text-slate-900 tabular-nums">{formatPeso(product.selling_price)}</td>
                       <td className="px-4 py-2.5 text-right">
-                        {status === "out" ? (
-                          <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-xs whitespace-nowrap">Out of Stock</Badge>
-                        ) : status === "low" ? (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-xs whitespace-nowrap">Low Stock</Badge>
-                        ) : (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 shadow-none text-xs whitespace-nowrap">In Stock</Badge>
-                        )}
+                        <Badge className={cn("shadow-none text-xs whitespace-nowrap", getStatusBadgeClass(status))}>
+                          {getStatusLabel(status)}
+                        </Badge>
                       </td>
                     </tr>
                   );
@@ -1130,7 +1161,7 @@ export default function ProductsPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm mt-2">
                         <div>
                           <p className="text-xs text-slate-400">Stock</p>
-                          <p className={cn("font-bold", status === "out" ? "text-red-600" : status === "low" ? "text-amber-600" : "text-green-600")}>
+                          <p className={cn("font-bold", getStatusTextClass(status))}>
                             {product.stock_quantity} <span className="text-xs font-normal opacity-70">{product.primary_unit}</span>
                           </p>
                         </div>
@@ -1141,10 +1172,10 @@ export default function ProductsPage() {
                       </div>
                     </div>
                   </div>
-                  {(status === "out" || status === "low") && (
-                    <div className={cn("px-4 py-1.5 text-xs font-medium flex items-center gap-1.5 border-t", status === "out" ? "bg-red-50 text-red-700 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
-                      <div className={cn("w-1.5 h-1.5 rounded-full", status === "out" ? "bg-red-500" : "bg-amber-500")} />
-                      {status === "out" ? "Out of Stock" : "Low Stock Alert"}
+                  {(status === "critical" || status === "low" || status === "overstock") && (
+                    <div className={cn("px-4 py-1.5 text-xs font-medium flex items-center gap-1.5 border-t", status === "critical" ? "bg-red-50 text-red-700 border-red-100" : status === "low" ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-violet-50 text-violet-700 border-violet-100")}>
+                      <div className={cn("w-1.5 h-1.5 rounded-full", status === "critical" ? "bg-red-500" : status === "low" ? "bg-amber-500" : "bg-violet-500")} />
+                      {status === "critical" ? "Critical Stock Alert" : status === "low" ? "Low Stock Alert" : "Overstock Alert"}
                     </div>
                   )}
                 </CardContent>
