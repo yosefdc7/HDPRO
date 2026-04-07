@@ -1026,9 +1026,9 @@ export default function ProductsPage() {
 
       {/* List View — Excel-style table */}
       {viewMode === "list" && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-md overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse" data-testid="products-table">
+            <table className="w-full text-base border-collapse" data-testid="products-table">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b-2 border-slate-300">
                   {ALL_COLS.map((col) => (
@@ -1041,7 +1041,7 @@ export default function ProductsPage() {
                       onApply={handleApplyFilter}
                       onClear={handleClearFilter}
                       align={col.align}
-                      className={col.align === "right" ? "text-right" : "text-left"}
+                      className={cn("px-6 py-4", col.align === "right" ? "text-right" : "text-left")}
                     />
                   ))}
                 </tr>
@@ -1054,38 +1054,38 @@ export default function ProductsPage() {
                     <tr
                       key={product.id}
                       className={cn(
-                        "cursor-pointer border-b border-slate-100 transition-colors",
-                        idx % 2 === 0 ? "bg-white" : "bg-slate-50/50",
+                        "cursor-pointer border-b-2 border-slate-100 transition-colors",
+                        idx % 2 === 0 ? "bg-white" : "bg-slate-50/30",
                         "hover:bg-blue-50/60"
                       )}
                       onClick={() => setSelectedProduct(product)}
                       data-testid={`product-row-${product.id}`}
                     >
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{product.image_placeholder}</span>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-4">
+                          <span className="text-3xl bg-white p-2 rounded-xl shadow-sm border border-slate-100">{product.image_placeholder}</span>
                           <div>
-                            <p className="font-medium text-slate-900 whitespace-nowrap">{product.name}</p>
-                            <p className="text-xs text-slate-400 font-mono">{product.sku}</p>
+                            <p className="font-bold text-slate-900 whitespace-nowrap text-lg leading-tight">{product.name}</p>
+                            <p className="text-sm text-slate-400 font-black mt-1 uppercase tracking-tighter">{product.sku}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-6 py-5">
                         <span
-                          className="text-xs font-medium px-2 py-0.5 rounded whitespace-nowrap"
-                          style={{ backgroundColor: `${cat?.color}20`, color: cat?.color }}
+                          className="text-sm font-black px-3 py-1 rounded-full whitespace-nowrap uppercase tracking-wider"
+                          style={{ backgroundColor: `${cat?.color}15`, color: cat?.color }}
                         >
                           {cat?.icon} {cat?.name}
                         </span>
                       </td>
-                      <td className={cn("px-4 py-2.5 text-right font-bold tabular-nums", getStatusTextClass(status))}>
+                      <td className={cn("px-6 py-5 text-right font-black tabular-nums text-xl", getStatusTextClass(status))}>
                         {product.stock_quantity}
                       </td>
-                      <td className="px-4 py-2.5 text-slate-600 text-xs">{product.primary_unit}</td>
-                      <td className="px-4 py-2.5 text-right text-slate-600 tabular-nums">{formatPeso(product.cost_price)}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-slate-900 tabular-nums">{formatPeso(product.selling_price)}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <Badge className={cn("shadow-none text-xs whitespace-nowrap", getStatusBadgeClass(status))}>
+                      <td className="px-6 py-5 text-slate-500 font-bold text-sm uppercase">{product.primary_unit}</td>
+                      <td className="px-6 py-5 text-right text-slate-500 font-bold tabular-nums">{formatPeso(product.cost_price)}</td>
+                      <td className="px-6 py-5 text-right font-black text-slate-900 tabular-nums text-lg">{formatPeso(product.selling_price)}</td>
+                      <td className="px-6 py-5 text-right">
+                        <Badge className={cn("shadow-sm text-sm font-black px-3 py-1 uppercase tracking-tighter whitespace-nowrap", getStatusBadgeClass(status))}>
                           {getStatusLabel(status)}
                         </Badge>
                       </td>
@@ -1094,28 +1094,28 @@ export default function ProductsPage() {
                 })}
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
+                    <td colSpan={7} className="py-24 text-center">
+                      <div className="flex flex-col items-center gap-4">
                         {localProducts.length === 0 ? (
                           <>
-                            <span className="text-5xl">📦</span>
-                            <p className="text-base font-semibold text-slate-700">No products yet</p>
-                            <p className="text-sm text-slate-400 max-w-xs">Add your first product to start tracking inventory.</p>
+                            <span className="text-6xl">📦</span>
+                            <p className="text-xl font-bold text-slate-700">No products yet</p>
+                            <p className="text-base text-slate-500 max-w-xs">Add your first product to start tracking inventory.</p>
                             <Button
-                              size="sm"
-                              className="bg-blue-700 hover:bg-blue-800 text-white mt-1"
+                              size="lg"
+                              className="bg-blue-700 hover:bg-blue-800 text-white mt-2 font-bold"
                               onClick={() => setShowAddModal(true)}
                               data-testid="empty-add-product-btn"
                             >
-                              <Plus className="h-4 w-4 mr-1" /> Add Product
+                              <Plus className="h-5 w-5 mr-2" /> Add Product
                             </Button>
                           </>
                         ) : (
                           <>
-                            <span className="text-5xl">🔍</span>
-                            <p className="text-base font-semibold text-slate-700">No results found</p>
-                            <p className="text-sm text-slate-400 max-w-xs">Try adjusting your search or clearing column filters.</p>
-                            <Button variant="outline" size="sm" onClick={() => { handleClearAll(); setSearchQuery(""); }} className="mt-1 text-xs">
+                            <span className="text-6xl">🔍</span>
+                            <p className="text-xl font-bold text-slate-700">No results found</p>
+                            <p className="text-base text-slate-500 max-w-xs">Try adjusting your search or clearing column filters.</p>
+                            <Button variant="outline" size="lg" onClick={() => { handleClearAll(); setSearchQuery(""); }} className="mt-2 font-bold">
                               Clear All Filters
                             </Button>
                           </>

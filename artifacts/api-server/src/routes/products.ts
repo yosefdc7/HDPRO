@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, productsTable } from "@workspace/db";
+import { db, insertProductSchema, productsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-// We use the generated Zod schemas to validate incoming POST bodies if needed
 
 const router = Router();
 
@@ -17,7 +16,12 @@ router.get("/products", async (req: Request, res: Response) => {
 
 router.post("/products", async (req: Request, res: Response) => {
   try {
-    const newProduct = await db.insert(productsTable).values(req.body).returning();
+    const parsed = insertProductSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid product data", issues: parsed.error.issues });
+      return;
+    }
+    const newProduct = await db.insert(productsTable).values(parsed.data).returning();
     res.status(201).json(newProduct[0]);
   } catch (err: any) {
     req.log.error({ err }, "Failed to create product");

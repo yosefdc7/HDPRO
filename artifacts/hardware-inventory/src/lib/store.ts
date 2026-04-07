@@ -166,6 +166,20 @@ function needsLedgerBackfill(movements: Movement[]): boolean {
   return movements.some((m) => m.quantity_before_base === undefined);
 }
 
+function fallbackSignedDeltaBase(type: MovementType, quantityBase: number): number {
+  switch (type) {
+    case "SALE":
+    case "DAMAGE":
+    case "RETURN_OUT":
+    case "TRANSFER_OUT":
+      return -Math.abs(quantityBase);
+    case "ADJUSTMENT":
+      return quantityBase;
+    default:
+      return Math.abs(quantityBase);
+  }
+}
+
 function backfillMovementLedger(
   movements: Movement[],
   products: Product[],
@@ -188,7 +202,9 @@ function backfillMovementLedger(
     const product = products.find((p) => p.id === ordered[0]?.product_id);
     if (!product) continue;
     const ctx = conversionContextForProduct(product, conversions);
-    let stock = 0;
+    const qbByMovementId = new Map<string, number>();
+    let runningDelta = 0;
+    let minRunningDelta = 0;
     for (const m of ordered) {
       const cur = out.get(m.id)!;
       let qb = cur.quantity_base;
@@ -196,22 +212,42 @@ function backfillMovementLedger(
         try {
           qb = quantityBaseForCreate(cur.type, cur.quantity, cur.unit, ctx);
         } catch {
-          qb =
-            cur.unit === product.primary_unit
-              ? cur.quantity
-              : cur.quantity;
+          qb = cur.quantity;
         }
       }
-      const r = applyMovement({
-        currentStockBase: stock,
-        type: cur.type,
-        quantityBase: qb,
-      });
-      cur.quantity_base = qb;
-      cur.signed_delta_base = r.signedDeltaBase;
-      cur.quantity_before_base = r.quantityBeforeBase;
-      cur.quantity_after_base = r.quantityAfterBase;
-      stock = r.nextStockBase;
+      qbByMovementId.set(cur.id, qb);
+      runningDelta += fallbackSignedDeltaBase(cur.type, qb);
+      minRunningDelta = Math.min(minRunningDelta, runningDelta);
+    }
+
+    // Legacy datasets can start with outbound transactions.
+    // Start from the minimum required opening stock to avoid negative replay.
+    let stock = Math.abs(minRunningDelta);
+    for (const m of ordered) {
+      const cur = out.get(m.id)!;
+      const qb = qbByMovementId.get(cur.id) ?? cur.quantity;
+      try {
+        const r = applyMovement({
+          currentStockBase: stock,
+          type: cur.type,
+          quantityBase: qb,
+        });
+        cur.quantity_base = qb;
+        cur.signed_delta_base = r.signedDeltaBase;
+        cur.quantity_before_base = r.quantityBeforeBase;
+        cur.quantity_after_base = r.quantityAfterBase;
+        stock = r.nextStockBase;
+      } catch {
+        // Fallback protects app boot when historical data is inconsistent.
+        const before = stock;
+        const signedDelta = fallbackSignedDeltaBase(cur.type, qb);
+        const after = Math.max(0, before + signedDelta);
+        cur.quantity_base = qb;
+        cur.signed_delta_base = after - before;
+        cur.quantity_before_base = before;
+        cur.quantity_after_base = after;
+        stock = after;
+      }
     }
   }
 
@@ -234,8 +270,20 @@ function syncProductStockFromReplay(movements: Movement[], products: Product[]) 
       type: m.type,
       quantityBase: m.quantity_base ?? 0,
     }));
-    const final = replayMovements(slices, { initialStockBase: 0 });
-    p.stock_quantity = final;
+    let runningDelta = 0;
+    let minRunningDelta = 0;
+    for (const s of slices) {
+      runningDelta += fallbackSignedDeltaBase(s.type, s.quantityBase);
+      minRunningDelta = Math.min(minRunningDelta, runningDelta);
+    }
+    const initialStockBase = Math.abs(minRunningDelta);
+    try {
+      const final = replayMovements(slices, { initialStockBase });
+      p.stock_quantity = final;
+    } catch {
+      // Keep app usable when legacy history contains inconsistent sequences.
+      p.stock_quantity = Math.max(0, initialStockBase + runningDelta);
+    }
   }
 }
 

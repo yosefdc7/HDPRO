@@ -25,6 +25,13 @@ import {
 
 const router = Router();
 
+function getSingleParam(value: string | string[] | undefined): string | null {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+  return null;
+}
+
 function mapReceivingError(err: unknown): {
   status: number;
   body: { error: string; code?: string };
@@ -49,8 +56,13 @@ router.get("/receiving/purchase-orders", async (req: Request, res: Response) => 
 });
 
 router.get("/receiving/purchase-orders/:id", async (req: Request, res: Response) => {
+  const id = getSingleParam(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid purchase order id" });
+    return;
+  }
   try {
-    const data = await getPurchaseOrder(req.params.id);
+    const data = await getPurchaseOrder(id);
     res.json(data);
   } catch (err: unknown) {
     const m = mapReceivingError(err);
@@ -84,13 +96,18 @@ router.post("/receiving/purchase-orders", async (req: Request, res: Response) =>
 });
 
 router.patch("/receiving/purchase-orders/:id", async (req: Request, res: Response) => {
+  const id = getSingleParam(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid purchase order id" });
+    return;
+  }
   try {
     const parsed = patchPurchaseOrderBodySchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
       return;
     }
-    const updated = await patchPurchaseOrder(req.params.id, parsed.data);
+    const updated = await patchPurchaseOrder(id, parsed.data);
     res.json(updated);
   } catch (err: unknown) {
     const m = mapReceivingError(err);
@@ -143,8 +160,13 @@ router.get("/receiving/deliveries", async (req: Request, res: Response) => {
 });
 
 router.get("/receiving/deliveries/:id", async (req: Request, res: Response) => {
+  const id = getSingleParam(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid delivery id" });
+    return;
+  }
   try {
-    const data = await getDelivery(req.params.id);
+    const data = await getDelivery(id);
     res.json(data);
   } catch (err: unknown) {
     const m = mapReceivingError(err);
@@ -158,13 +180,18 @@ router.get("/receiving/deliveries/:id", async (req: Request, res: Response) => {
 });
 
 router.put("/receiving/deliveries/:id/lines", async (req: Request, res: Response) => {
+  const id = getSingleParam(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid delivery id" });
+    return;
+  }
   try {
     const parsed = putDeliveryLinesBodySchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
       return;
     }
-    const data = await putDeliveryLines(req.params.id, parsed.data);
+    const data = await putDeliveryLines(id, parsed.data);
     res.json(data);
   } catch (err: unknown) {
     const m = mapReceivingError(err);
@@ -188,13 +215,18 @@ router.put("/receiving/deliveries/:id/lines", async (req: Request, res: Response
 });
 
 router.post("/receiving/deliveries/:id/post", async (req: Request, res: Response) => {
+  const id = getSingleParam(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid delivery id" });
+    return;
+  }
   try {
     const parsed = postDeliveryBodySchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
       return;
     }
-    const result = await postDelivery(req.params.id, parsed.data);
+    const result = await postDelivery(id, parsed.data);
     res.status(result.idempotent ? 200 : 201).json(result);
   } catch (err: unknown) {
     const m = mapReceivingError(err);
@@ -218,8 +250,13 @@ router.post("/receiving/deliveries/:id/post", async (req: Request, res: Response
 });
 
 router.get("/receiving/products/:productId/incoming", async (req: Request, res: Response) => {
+  const productId = getSingleParam(req.params.productId);
+  if (!productId) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
   try {
-    const data = await getProductIncoming(req.params.productId);
+    const data = await getProductIncoming(productId);
     res.json(data);
   } catch (err: unknown) {
     const m = mapReceivingError(err);

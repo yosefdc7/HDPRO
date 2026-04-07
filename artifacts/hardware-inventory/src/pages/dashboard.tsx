@@ -164,32 +164,32 @@ export default function DashboardPage() {
     {
       label: "Total Products",
       numericValue: stats.totalProducts,
-      icon: <Package className="h-6 w-6" />,
-      iconBg: "bg-blue-50 text-blue-600",
+      icon: <Package className="h-8 w-8" />,
+      iconBg: "bg-blue-100 text-blue-700",
       valueColor: "text-slate-900",
       badge: null,
     },
     {
       label: "Low Stock Items",
       numericValue: alertCount,
-      icon: <AlertTriangle className="h-6 w-6" />,
-      iconBg: "bg-red-50 text-red-600",
-      valueColor: alertCount > 0 ? "text-red-600" : "text-green-600",
+      icon: <AlertTriangle className="h-8 w-8" />,
+      iconBg: "bg-red-100 text-red-700",
+      valueColor: alertCount > 0 ? "text-red-700" : "text-green-700",
       badge: alertCount > 0 ? `${stats.criticalStock.length} critical · ${stats.lowStock.length} low` : "All stocked",
     },
     {
       label: "Today's Movements",
       numericValue: stats.todayMovements.length,
-      icon: <ArrowDownUp className="h-6 w-6" />,
-      iconBg: "bg-emerald-50 text-emerald-600",
+      icon: <ArrowDownUp className="h-8 w-8" />,
+      iconBg: "bg-emerald-100 text-emerald-700",
       valueColor: "text-slate-900",
       badge: null,
     },
     {
       label: "Inventory Value",
       numericValue: stats.inventoryValue,
-      icon: <PhilippinePeso className="h-6 w-6" />,
-      iconBg: "bg-violet-50 text-violet-600",
+      icon: <PhilippinePeso className="h-8 w-8" />,
+      iconBg: "bg-violet-100 text-violet-700",
       valueColor: "text-slate-900",
       isLarge: true,
       badge: null,
@@ -204,36 +204,36 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <PullToRefresh onRefresh={loadData} />
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
           {greeting}, {currentUser.name.split(" ")[0]}!
         </h1>
-        <p className="text-slate-500 mt-1">
+        <p className="text-slate-500 mt-2 text-xl font-medium">
           Here's what's happening in your store today.
         </p>
       </div>
 
       {/* Quick Actions */}
       {loaded && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Add Product", href: "/products", emoji: "➕", color: "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-100" },
-            { label: "Stock In", href: "/movements", emoji: "📥", color: "bg-green-50 hover:bg-green-100 text-green-700 border-green-100" },
-            { label: "Stock Out", href: "/movements", emoji: "📤", color: "bg-red-50 hover:bg-red-100 text-red-700 border-red-100" },
-            { label: "Scan Barcode", href: "/scan", emoji: "📷", color: "bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-100" },
+            { label: "Add Product", href: "/products", emoji: "➕", color: "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200" },
+            { label: "Stock In", href: "/movements", emoji: "📥", color: "bg-green-50 hover:bg-green-100 text-green-700 border-green-200" },
+            { label: "Stock Out", href: "/movements", emoji: "📤", color: "bg-red-50 hover:bg-red-100 text-red-700 border-red-200" },
+            { label: "Scan Barcode", href: "/scan", emoji: "📷", color: "bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-200" },
           ].map((action) => (
             <Link
               key={action.label}
               href={action.href}
               className={cn(
-                "flex items-center gap-3 p-3 rounded-xl border font-medium text-sm transition-all duration-200 active:scale-95",
+                "flex items-center justify-center gap-4 p-6 rounded-2xl border-2 font-bold text-lg transition-all duration-200 active:scale-95 shadow-sm",
                 action.color
               )}
               data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
-              <span className="text-xl">{action.emoji}</span>
+              <span className="text-3xl">{action.emoji}</span>
               <span>{action.label}</span>
             </Link>
           ))}
@@ -241,25 +241,25 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {!loaded
           ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
           : statCards.map((card, i) => (
               <Card
                 key={i}
-                className="rounded-xl shadow-sm border-slate-100 transition-all duration-300"
+                className="rounded-2xl shadow-md border-2 border-slate-100 transition-all duration-300 hover:shadow-lg"
                 data-testid={`stat-card-${i}`}
               >
-                <CardContent className="p-6">
+                <CardContent className="p-8">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-500 mb-1">
+                    <div className="space-y-2">
+                      <p className="text-base font-bold text-slate-500 uppercase tracking-wider">
                         {card.label}
                       </p>
                       <p
                         className={cn(
-                          "font-bold tabular-nums",
-                          card.isLarge ? "text-xl" : "text-3xl",
+                          "font-black tabular-nums tracking-tighter",
+                          card.isLarge ? "text-2xl" : "text-4xl",
                           card.valueColor
                         )}
                       >
@@ -270,12 +270,12 @@ export default function DashboardPage() {
                         />
                       </p>
                       {card.badge && (
-                        <p className={cn("text-xs mt-1 font-medium", alertCount > 0 && i === 1 ? "text-red-500" : "text-green-600")}>
+                        <p className={cn("text-sm mt-2 font-bold px-2 py-1 rounded-md inline-block", alertCount > 0 && i === 1 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700")}>
                           {card.badge}
                         </p>
                       )}
                     </div>
-                    <div className={cn("p-3 rounded-xl", card.iconBg)}>
+                    <div className={cn("p-4 rounded-2xl shadow-inner", card.iconBg)}>
                       {card.icon}
                     </div>
                   </div>
@@ -284,34 +284,34 @@ export default function DashboardPage() {
             ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Main Column */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-10">
 
           {/* Needs Restock */}
-          <Card className="rounded-xl shadow-sm border-slate-100">
-            <CardHeader className="border-b border-slate-100 pb-4">
+          <Card className="rounded-2xl shadow-md border-2 border-slate-100 overflow-hidden">
+            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-8">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                  <AlertTriangle className="h-7 w-7 text-amber-500" />
                   Needs Restock
                 </CardTitle>
                 <Link
                   href="/reorders"
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  className="text-base font-bold text-blue-700 hover:text-blue-900 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
                   data-testid="needs-restock-view-all"
                 >
-                  Suggested reorders <ChevronRight className="h-4 w-4" />
+                  View all <ChevronRight className="h-5 w-5" />
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {needsRestock.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
+                <div className="p-12 text-center text-slate-500 text-xl font-medium">
                   All items are well stocked! 🎉
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y-2 divide-slate-100">
                   {needsRestock.map(({ p: product, r: reorder }) => {
                     const insight = getProductInventoryInsight(product);
                     const isCritical = insight.health === "critical";
@@ -325,46 +325,46 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={product.id}
-                        className="p-4 hover:bg-slate-50 transition-colors"
+                        className="p-6 hover:bg-slate-50 transition-colors"
                         data-testid={`restock-item-${product.id}`}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl">{product.image_placeholder}</span>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-4">
+                            <span className="text-4xl bg-white p-3 rounded-2xl shadow-sm border-2 border-slate-50">{product.image_placeholder}</span>
                             <div>
                               <Link
                                 href={`/products/${product.id}`}
-                                className="font-medium text-slate-900 hover:text-blue-700 text-sm"
+                                className="font-bold text-slate-900 hover:text-blue-700 text-lg leading-tight block"
                               >
                                 {product.name}
                               </Link>
-                              <p className="text-xs text-slate-500">{product.sku}</p>
+                              <p className="text-sm text-slate-500 font-bold mt-1 uppercase tracking-wider">{product.sku}</p>
                             </div>
                           </div>
                           <div className="text-right">
                             {isCritical ? (
-                              <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-xs">
+                              <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-sm px-3 py-1">
                                 Critical
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-xs">
+                              <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-sm px-3 py-1">
                                 Low Stock
                               </Badge>
                             )}
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p className="text-sm text-slate-600 font-bold mt-2">
                               {Math.round(reorder.projectedPositionBase)} / {insight.reorderPoint}{" "}
                               {product.primary_unit}
                             </p>
-                            <p className="text-[11px] text-blue-600 font-semibold mt-0.5">
+                            <p className="text-sm text-blue-700 font-black mt-1">
                               Order: {Math.round(reorder.suggestedOrderBase)} {product.primary_unit}
                               {packLine ? ` · ${packLine}` : ""}
                             </p>
                           </div>
                         </div>
-                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                           <div
                             className={cn(
-                              "h-full rounded-full transition-all duration-700",
+                              "h-full rounded-full transition-all duration-1000",
                               isCritical ? "bg-red-500" : "bg-amber-400"
                             )}
                             style={{ width: `${pct}%` }}
@@ -379,23 +379,23 @@ export default function DashboardPage() {
           </Card>
 
           {/* Recent Activity */}
-          <Card className="rounded-xl shadow-sm border-slate-100">
-            <CardHeader className="border-b border-slate-100 pb-4">
+          <Card className="rounded-2xl shadow-md border-2 border-slate-100 overflow-hidden">
+            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-8">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-bold text-slate-900">
+                <CardTitle className="text-2xl font-black text-slate-900">
                   Recent Activity
                 </CardTitle>
                 <Link
                   href="/movements"
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  className="text-base font-bold text-blue-700 hover:text-blue-900 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
                   data-testid="recent-activity-view-all"
                 >
-                  View all <ChevronRight className="h-4 w-4" />
+                  View all <ChevronRight className="h-5 w-5" />
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y-2 divide-slate-100">
                 {recentActivity.map((movement) => {
                   const movementMeta = MOVEMENT_UI_META[movement.type];
                   const isInbound = movementMeta.direction === "in";
@@ -403,37 +403,38 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={movement.id}
-                      className="p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                      className="p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors"
                       data-testid={`activity-item-${movement.id}`}
                     >
                       <div
                         className={cn(
-                          "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center",
-                          movementMeta.iconBgClass
+                          "flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border-2",
+                          movementMeta.iconBgClass,
+                          isInbound ? "border-green-100" : isNeutral ? "border-slate-100" : "border-red-100"
                         )}
                       >
                         {isInbound ? (
-                          <ArrowUpCircle className="h-5 w-5" />
+                          <ArrowUpCircle className="h-7 w-7" />
                         ) : isNeutral ? (
-                          <RefreshCw className="h-4 w-4" />
+                          <RefreshCw className="h-6 w-6" />
                         ) : (
-                          <ArrowDownCircle className="h-5 w-5" />
+                          <ArrowDownCircle className="h-7 w-7" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">
+                        <p className="text-lg font-bold text-slate-900 truncate">
                           {movement.product_name}
                         </p>
-                        <p className="text-xs text-slate-500 truncate">
-                          {movement.note} · by {movement.by}
+                        <p className="text-sm text-slate-500 font-medium truncate mt-1">
+                          {movement.note} · <span className="text-slate-700 font-bold">by {movement.by}</span>
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className={cn("text-sm font-bold", movementMeta.textClass)}>
+                        <p className={cn("text-lg font-black", movementMeta.textClass)}>
                           {getMovementDisplaySign(movement.type)}
                           {Math.abs(movement.quantity)} {movement.unit}
                         </p>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-sm text-slate-400 font-bold mt-1">
                           {relativeTime(movement.timestamp)}
                         </p>
                       </div>
@@ -446,32 +447,32 @@ export default function DashboardPage() {
         </div>
 
         {/* Sidebar Column */}
-        <div className="space-y-8">
+        <div className="space-y-10">
           {/* Stock by Category */}
-          <Card className="rounded-xl shadow-sm border-slate-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-bold text-slate-900">
+          <Card className="rounded-2xl shadow-md border-2 border-slate-100 overflow-hidden">
+            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-8">
+              <CardTitle className="text-2xl font-black text-slate-900">
                 Stock by Category
               </CardTitle>
-              <p className="text-xs text-slate-500">By inventory value</p>
+              <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">By inventory value</p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-8 space-y-6">
               {categoryValues.map((cat) => {
                 const pct = Math.max(4, (cat.value / totalInventoryValue) * 100);
                 return (
                   <div key={cat.name} data-testid={`cat-bar-${cat.name}`}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                        <span>{cat.icon}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-base font-bold text-slate-700 flex items-center gap-3">
+                        <span className="text-2xl">{cat.icon}</span>
                         {cat.name}
                       </span>
-                      <span className="text-xs text-slate-500 font-medium">
+                      <span className="text-sm text-slate-900 font-black">
                         {formatPeso(cat.value)}
                       </span>
                     </div>
-                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                       <div
-                        className="h-full rounded-full transition-all duration-700"
+                        className="h-full rounded-full transition-all duration-1000"
                         style={{ width: `${pct}%`, backgroundColor: cat.color }}
                       />
                     </div>
