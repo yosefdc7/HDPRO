@@ -9,7 +9,18 @@ import {
 
 const router = Router();
 
+// Mock data fallback
+const MOCK_MOVEMENTS = [
+  { id: "sm1", type: "in", product_id: "p1", product_name: "Portland Cement", quantity: 200, unit: "bag", note: "Supplier delivery - Eagle Cement", by: "RJ", timestamp: "2026-04-04T08:30:00" },
+  { id: "sm2", type: "out", product_id: "p2", product_name: "THHN Wire #12 Red", quantity: 50, unit: "meter", note: "Walk-in customer", by: "RJ", timestamp: "2026-04-04T09:15:00" },
+  { id: "sm3", type: "adjustment", product_id: "p6", product_name: "Hollow Blocks 4\"", quantity: -15, unit: "piece", note: "Breakage write-off", by: "RJ", timestamp: "2026-04-03T14:00:00" }
+];
+
 router.get("/movements", async (req: Request, res: Response) => {
+  if (process.env.USE_MOCK_DB === "true") {
+    res.json(MOCK_MOVEMENTS);
+    return;
+  }
   try {
     const movements = await db.select().from(movementsTable);
     res.json(movements);
@@ -20,6 +31,11 @@ router.get("/movements", async (req: Request, res: Response) => {
 });
 
 router.post("/movements", async (req: Request, res: Response) => {
+  if (process.env.USE_MOCK_DB === "true") {
+    const newMovement = { ...req.body, id: `sm${Math.floor(Math.random() * 1000)}`, timestamp: new Date().toISOString() };
+    res.status(201).json(newMovement);
+    return;
+  }
   try {
     const parsed = CreateMovementBody.safeParse(req.body);
     if (!parsed.success) {

@@ -12,6 +12,8 @@ import {
   LogOut,
   Camera,
   MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { currentUser, stores } from "@/lib/mock-data";
@@ -72,6 +74,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentStore, setCurrentStore] = useState(stores[0]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("hw_sidebar_collapsed") === "true";
+  });
 
   useEffect(() => {
     const savedStoreId = localStorage.getItem("hw_store_id");
@@ -80,6 +85,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       if (store) setCurrentStore(store);
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("hw_sidebar_collapsed", String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   const handleStoreChange = (store: typeof stores[0]) => {
     setCurrentStore(store);
@@ -100,17 +109,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return item ? item.label : "Hardware Inventory Pro";
   };
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white text-slate-900 border-r-2 border-slate-200">
+  const SidebarContent = ({ inDrawer = false }: { inDrawer?: boolean }) => (
+    <div className="flex flex-col h-full bg-white text-slate-900 border-r-2 border-slate-200 relative">
       <div className="p-8">
-        <div className="flex items-center gap-4 mb-10">
-          <span className="text-4xl">🔧</span>
-          <span className="font-extrabold text-xl leading-tight tracking-tight">
-            Hardware<br />Inventory Pro
-          </span>
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-4">
+            <span className="text-4xl">🔧</span>
+            <span className="font-extrabold text-xl leading-tight tracking-tight">
+              Hardware<br />Inventory Pro
+            </span>
+          </div>
+          {!inDrawer && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden md:flex text-slate-400 hover:text-slate-700 h-8 w-8 -mr-4"
+              onClick={() => setIsSidebarCollapsed(true)}
+              aria-label="Collapse Sidebar"
+            >
+              <PanelLeftClose className="h-5 w-5" />
+            </Button>
+          )}
         </div>
 
-        <nav className="space-y-3">
+        <nav className="space-y-2">
           {mainNavItems.map((item) => {
             const isActive =
               location === item.href ||
@@ -120,14 +142,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-4 px-4 py-4 rounded-xl font-bold text-lg transition-all duration-200",
+                  "flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-base transition-all duration-200",
                   isActive
                     ? "bg-blue-50 text-blue-700 shadow-sm"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 )}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <item.icon className={cn("h-6 w-6", isActive ? "stroke-[3px]" : "stroke-2")} />
+                <item.icon className={cn("h-5 w-5", isActive ? "stroke-[2.5px]" : "stroke-2")} />
                 {item.label}
               </Link>
             );
@@ -136,24 +158,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="mt-auto p-6 border-t-2 border-slate-100">
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 mb-4 border-2 border-slate-100">
-          <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-            <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-lg">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 mb-4 border-2 border-slate-100">
+          <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+            <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-base">
               {currentUser.avatar_initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-base font-bold text-slate-900 truncate">{currentUser.name}</span>
-            <span className="text-sm text-slate-500 truncate font-medium">{currentStore.branch_name}</span>
+            <span className="text-sm font-bold text-slate-900 truncate">{currentUser.name}</span>
+            <span className="text-xs text-slate-500 truncate font-medium">{currentStore.branch_name}</span>
           </div>
           <StatusDot />
         </div>
         <Button
           variant="ghost"
-          className="w-full justify-start text-slate-600 hover:text-red-600 hover:bg-red-50 h-14 text-lg font-bold"
+          className="w-full justify-start text-slate-600 hover:text-red-600 hover:bg-red-50 h-12 text-base font-bold"
           onClick={handleLogout}
         >
-          <LogOut className="h-6 w-6 mr-4" />
+          <LogOut className="h-5 w-5 mr-3" />
           Log Out
         </Button>
       </div>
@@ -161,54 +183,75 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex flex-col md:flex-row">
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col md:flex-row overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:block w-72 fixed inset-y-0 left-0 z-50">
+      <aside
+        className={cn(
+          "hidden md:block w-64 fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out",
+          isSidebarCollapsed ? "-translate-x-full" : "translate-x-0"
+        )}
+      >
         <SidebarContent />
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 md:pl-72 flex flex-col min-h-[100dvh]">
+      <div
+        className={cn(
+          "flex-1 flex flex-col min-h-[100dvh] transition-[padding] duration-300 ease-in-out w-full",
+          isSidebarCollapsed ? "md:pl-0" : "md:pl-64"
+        )}
+      >
         {/* Offline Banner (top sticky) */}
         <OfflineBanner />
 
         {/* Mobile/Desktop Header */}
-        <header className="sticky top-0 z-40 bg-white border-b-2 border-slate-200 h-20 flex items-center justify-between px-6 md:px-10">
-          <div className="flex items-center gap-4 md:hidden">
+        <header className="sticky top-0 z-40 bg-white border-b-2 border-slate-200 h-16 flex items-center justify-between px-6 md:px-8">
+          <div className="flex items-center gap-3 md:hidden">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2 text-slate-600 h-12 w-12">
-                  <Menu className="h-8 w-8" />
+                <Button variant="ghost" size="icon" className="-ml-2 text-slate-600 h-10 w-10">
+                  <Menu className="h-6 w-6" />
                   <span className="sr-only">Toggle Menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-80 border-r-0">
+              <SheetContent side="left" className="p-0 w-72 border-r-0">
                 <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                <SidebarContent />
+                <SidebarContent inDrawer />
               </SheetContent>
             </Sheet>
-            <span className="font-bold text-slate-900 text-xl truncate">
+            <span className="font-bold text-slate-900 text-lg truncate">
               {getPageTitle()}
             </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
-            <span className="font-extrabold text-slate-900 text-2xl tracking-tight">
+          <div className="hidden md:flex items-center gap-3">
+            {isSidebarCollapsed && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-500 hover:text-slate-900 h-10 w-10 -ml-2"
+                onClick={() => setIsSidebarCollapsed(false)}
+                aria-label="Expand Sidebar"
+              >
+                <PanelLeftOpen className="h-6 w-6" />
+              </Button>
+            )}
+            <span className="font-extrabold text-slate-900 text-xl tracking-tight">
               {getPageTitle()}
             </span>
             <StatusDot />
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="hidden sm:flex items-center gap-3 border-2 border-slate-200 text-slate-700 bg-slate-50 h-12 px-5 font-bold"
+                  className="hidden sm:flex items-center gap-2 border-2 border-slate-200 text-slate-700 bg-slate-50 h-10 px-4 font-bold text-sm"
                 >
-                  <Store className="h-5 w-5" />
-                  <span className="truncate max-w-[180px]">{currentStore.branch_name}</span>
-                  <ChevronDown className="h-5 w-5 opacity-50" />
+                  <Store className="h-4 w-4" />
+                  <span className="truncate max-w-[150px]">{currentStore.branch_name}</span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-2">
@@ -217,7 +260,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     key={store.id}
                     onClick={() => handleStoreChange(store)}
                     className={cn(
-                      "py-3 px-4 rounded-lg text-base font-medium",
+                      "py-2 px-3 rounded-lg text-sm font-medium",
                       currentStore.id === store.id && "bg-blue-50 text-blue-700 font-bold"
                     )}
                   >
@@ -227,10 +270,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="md:hidden flex items-center gap-3">
+            <div className="md:hidden flex items-center gap-2">
               <StatusDot />
-              <Avatar className="h-10 w-10 border-2 border-slate-200 shadow-sm">
-                <AvatarFallback className="bg-blue-100 text-blue-700 text-sm font-bold">
+              <Avatar className="h-8 w-8 border-2 border-slate-200 shadow-sm">
+                <AvatarFallback className="bg-blue-100 text-blue-700 text-xs font-bold">
                   {currentUser.avatar_initials}
                 </AvatarFallback>
               </Avatar>
@@ -239,12 +282,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6 md:p-10 pb-32 md:pb-12 max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-6 md:p-8 pb-32 md:pb-10 max-w-7xl mx-auto w-full">
           {children}
         </main>
 
         {/* Mobile Bottom Tab Bar */}
-        <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t-2 border-slate-200 flex justify-around items-center h-20 px-2 pb-safe z-40" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 12px)" }}>
+        <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t-2 border-slate-200 flex justify-around items-center h-16 px-2 pb-safe z-40" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)" }}>
           {bottomNavItems.map((item) => {
             const isActive =
               location === item.href ||
@@ -254,14 +297,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center flex-1 h-full space-y-1.5 transition-all",
+                  "flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-all",
                   isActive ? "text-blue-700" : "text-slate-500 hover:text-slate-900"
                 )}
               >
                 <item.icon
-                  className={cn("h-7 w-7", isActive && "fill-blue-100 stroke-[2.5px]")}
+                  className={cn("h-6 w-6", isActive && "fill-blue-100 stroke-[2.5px]")}
                 />
-                <span className={cn("text-xs font-bold", isActive ? "opacity-100" : "opacity-80")}>{item.label}</span>
+                <span className={cn("text-[10px] font-bold", isActive ? "opacity-100" : "opacity-80")}>{item.label}</span>
               </Link>
             );
           })}

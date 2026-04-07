@@ -164,7 +164,7 @@ export default function DashboardPage() {
     {
       label: "Total Products",
       numericValue: stats.totalProducts,
-      icon: <Package className="h-8 w-8" />,
+      icon: <Package className="h-6 w-6" />,
       iconBg: "bg-blue-100 text-blue-700",
       valueColor: "text-slate-900",
       badge: null,
@@ -172,7 +172,7 @@ export default function DashboardPage() {
     {
       label: "Low Stock Items",
       numericValue: alertCount,
-      icon: <AlertTriangle className="h-8 w-8" />,
+      icon: <AlertTriangle className="h-6 w-6" />,
       iconBg: "bg-red-100 text-red-700",
       valueColor: alertCount > 0 ? "text-red-700" : "text-green-700",
       badge: alertCount > 0 ? `${stats.criticalStock.length} critical · ${stats.lowStock.length} low` : "All stocked",
@@ -180,7 +180,7 @@ export default function DashboardPage() {
     {
       label: "Today's Movements",
       numericValue: stats.todayMovements.length,
-      icon: <ArrowDownUp className="h-8 w-8" />,
+      icon: <ArrowDownUp className="h-6 w-6" />,
       iconBg: "bg-emerald-100 text-emerald-700",
       valueColor: "text-slate-900",
       badge: null,
@@ -188,7 +188,7 @@ export default function DashboardPage() {
     {
       label: "Inventory Value",
       numericValue: stats.inventoryValue,
-      icon: <PhilippinePeso className="h-8 w-8" />,
+      icon: <PhilippinePeso className="h-6 w-6" />,
       iconBg: "bg-violet-100 text-violet-700",
       valueColor: "text-slate-900",
       isLarge: true,
@@ -204,20 +204,20 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <PullToRefresh onRefresh={loadData} />
       <div>
-        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           {greeting}, {currentUser.name.split(" ")[0]}!
         </h1>
-        <p className="text-slate-500 mt-2 text-xl font-medium">
+        <p className="text-slate-500 mt-1 text-lg font-medium">
           Here's what's happening in your store today.
         </p>
       </div>
 
       {/* Quick Actions */}
       {loaded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           {[
             { label: "Add Product", href: "/products", emoji: "➕", color: "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200" },
             { label: "Stock In", href: "/movements", emoji: "📥", color: "bg-green-50 hover:bg-green-100 text-green-700 border-green-200" },
@@ -228,20 +228,20 @@ export default function DashboardPage() {
               key={action.label}
               href={action.href}
               className={cn(
-                "flex items-center justify-center gap-4 p-6 rounded-2xl border-2 font-bold text-lg transition-all duration-200 active:scale-95 shadow-sm",
+                "flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 p-4 rounded-2xl border-2 font-bold text-sm lg:text-base transition-all duration-200 active:scale-95 shadow-sm text-center sm:text-left",
                 action.color
               )}
               data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
-              <span className="text-3xl">{action.emoji}</span>
-              <span>{action.label}</span>
+              <span className="text-2xl flex-shrink-0">{action.emoji}</span>
+              <span className="leading-tight">{action.label}</span>
             </Link>
           ))}
         </div>
       )}
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {!loaded
           ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
           : statCards.map((card, i) => (
@@ -250,16 +250,16 @@ export default function DashboardPage() {
                 className="rounded-2xl shadow-md border-2 border-slate-100 transition-all duration-300 hover:shadow-lg"
                 data-testid={`stat-card-${i}`}
               >
-                <CardContent className="p-8">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-2">
-                      <p className="text-base font-bold text-slate-500 uppercase tracking-wider">
+                <CardContent className="p-4 lg:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                         {card.label}
                       </p>
                       <p
                         className={cn(
                           "font-black tabular-nums tracking-tighter",
-                          card.isLarge ? "text-2xl" : "text-4xl",
+                          card.isLarge ? "text-xl lg:text-2xl" : "text-2xl lg:text-3xl",
                           card.valueColor
                         )}
                       >
@@ -270,12 +270,12 @@ export default function DashboardPage() {
                         />
                       </p>
                       {card.badge && (
-                        <p className={cn("text-sm mt-2 font-bold px-2 py-1 rounded-md inline-block", alertCount > 0 && i === 1 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700")}>
+                        <p className={cn("text-[10px] lg:text-xs mt-1 font-bold px-2 py-0.5 rounded-md inline-block max-w-full", alertCount > 0 && i === 1 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700")}>
                           {card.badge}
                         </p>
                       )}
                     </div>
-                    <div className={cn("p-4 rounded-2xl shadow-inner", card.iconBg)}>
+                    <div className={cn("p-3 rounded-2xl shadow-inner flex-shrink-0", card.iconBg)}>
                       {card.icon}
                     </div>
                   </div>
@@ -284,30 +284,30 @@ export default function DashboardPage() {
             ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Column */}
-        <div className="lg:col-span-2 space-y-10">
+        <div className="lg:col-span-2 space-y-8">
 
           {/* Needs Restock */}
           <Card className="rounded-2xl shadow-md border-2 border-slate-100 overflow-hidden">
-            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-8">
+            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                  <AlertTriangle className="h-7 w-7 text-amber-500" />
+                <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <AlertTriangle className="h-6 w-6 text-amber-500" />
                   Needs Restock
                 </CardTitle>
                 <Link
                   href="/reorders"
-                  className="text-base font-bold text-blue-700 hover:text-blue-900 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
+                  className="text-sm font-bold text-blue-700 hover:text-blue-900 flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl transition-colors"
                   data-testid="needs-restock-view-all"
                 >
-                  View all <ChevronRight className="h-5 w-5" />
+                  View all <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {needsRestock.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 text-xl font-medium">
+                <div className="p-10 text-center text-slate-500 text-lg font-medium">
                   All items are well stocked! 🎉
                 </div>
               ) : (
@@ -325,43 +325,43 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={product.id}
-                        className="p-6 hover:bg-slate-50 transition-colors"
+                        className="p-4 lg:p-5 hover:bg-slate-50 transition-colors"
                         data-testid={`restock-item-${product.id}`}
                       >
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-4">
-                            <span className="text-4xl bg-white p-3 rounded-2xl shadow-sm border-2 border-slate-50">{product.image_placeholder}</span>
-                            <div>
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-2xl lg:text-3xl bg-white p-2 rounded-xl shadow-sm border-2 border-slate-50 flex-shrink-0">{product.image_placeholder}</span>
+                            <div className="min-w-0">
                               <Link
                                 href={`/products/${product.id}`}
-                                className="font-bold text-slate-900 hover:text-blue-700 text-lg leading-tight block"
+                                className="font-bold text-slate-900 hover:text-blue-700 text-sm lg:text-base leading-tight block truncate"
                               >
                                 {product.name}
                               </Link>
-                              <p className="text-sm text-slate-500 font-bold mt-1 uppercase tracking-wider">{product.sku}</p>
+                              <p className="text-[10px] lg:text-xs text-slate-500 font-bold mt-0.5 uppercase tracking-wider truncate">{product.sku}</p>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex-shrink-0">
                             {isCritical ? (
-                              <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-sm px-3 py-1">
+                              <Badge className="bg-red-100 text-red-700 border-red-200 shadow-none text-[10px] lg:text-xs px-2 py-0.5">
                                 Critical
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-sm px-3 py-1">
+                              <Badge className="bg-amber-100 text-amber-700 border-amber-200 shadow-none text-[10px] lg:text-xs px-2 py-0.5">
                                 Low Stock
                               </Badge>
                             )}
-                            <p className="text-sm text-slate-600 font-bold mt-2">
+                            <p className="text-[10px] lg:text-xs text-slate-600 font-bold mt-1.5 truncate">
                               {Math.round(reorder.projectedPositionBase)} / {insight.reorderPoint}{" "}
                               {product.primary_unit}
                             </p>
-                            <p className="text-sm text-blue-700 font-black mt-1">
+                            <p className="text-[10px] lg:text-xs text-blue-700 font-black mt-0.5 truncate">
                               Order: {Math.round(reorder.suggestedOrderBase)} {product.primary_unit}
                               {packLine ? ` · ${packLine}` : ""}
                             </p>
                           </div>
                         </div>
-                        <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-1000",
@@ -380,17 +380,17 @@ export default function DashboardPage() {
 
           {/* Recent Activity */}
           <Card className="rounded-2xl shadow-md border-2 border-slate-100 overflow-hidden">
-            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-8">
+            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-black text-slate-900">
+                <CardTitle className="text-xl font-black text-slate-900">
                   Recent Activity
                 </CardTitle>
                 <Link
                   href="/movements"
-                  className="text-base font-bold text-blue-700 hover:text-blue-900 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
+                  className="text-sm font-bold text-blue-700 hover:text-blue-900 flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl transition-colors"
                   data-testid="recent-activity-view-all"
                 >
-                  View all <ChevronRight className="h-5 w-5" />
+                  View all <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
             </CardHeader>
@@ -403,38 +403,38 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={movement.id}
-                      className="p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors"
+                      className="p-4 lg:p-5 flex items-center gap-3 hover:bg-slate-50 transition-colors"
                       data-testid={`activity-item-${movement.id}`}
                     >
                       <div
                         className={cn(
-                          "flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border-2",
+                          "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border-2",
                           movementMeta.iconBgClass,
                           isInbound ? "border-green-100" : isNeutral ? "border-slate-100" : "border-red-100"
                         )}
                       >
                         {isInbound ? (
-                          <ArrowUpCircle className="h-7 w-7" />
+                          <ArrowUpCircle className="h-5 w-5" />
                         ) : isNeutral ? (
-                          <RefreshCw className="h-6 w-6" />
+                          <RefreshCw className="h-4 w-4" />
                         ) : (
-                          <ArrowDownCircle className="h-7 w-7" />
+                          <ArrowDownCircle className="h-5 w-5" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-lg font-bold text-slate-900 truncate">
+                        <p className="text-sm lg:text-base font-bold text-slate-900 truncate">
                           {movement.product_name}
                         </p>
-                        <p className="text-sm text-slate-500 font-medium truncate mt-1">
+                        <p className="text-[10px] lg:text-xs text-slate-500 font-medium truncate mt-0.5">
                           {movement.note} · <span className="text-slate-700 font-bold">by {movement.by}</span>
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className={cn("text-lg font-black", movementMeta.textClass)}>
+                        <p className={cn("text-sm lg:text-base font-black truncate", movementMeta.textClass)}>
                           {getMovementDisplaySign(movement.type)}
                           {Math.abs(movement.quantity)} {movement.unit}
                         </p>
-                        <p className="text-sm text-slate-400 font-bold mt-1">
+                        <p className="text-[10px] lg:text-xs text-slate-400 font-bold mt-0.5 truncate">
                           {relativeTime(movement.timestamp)}
                         </p>
                       </div>
@@ -447,30 +447,30 @@ export default function DashboardPage() {
         </div>
 
         {/* Sidebar Column */}
-        <div className="space-y-10">
+        <div className="space-y-8">
           {/* Stock by Category */}
           <Card className="rounded-2xl shadow-md border-2 border-slate-100 overflow-hidden">
-            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-8">
-              <CardTitle className="text-2xl font-black text-slate-900">
+            <CardHeader className="bg-slate-50/50 border-b-2 border-slate-100 p-6">
+              <CardTitle className="text-xl font-black text-slate-900">
                 Stock by Category
               </CardTitle>
-              <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">By inventory value</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">By inventory value</p>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
+            <CardContent className="p-6 space-y-5">
               {categoryValues.map((cat) => {
                 const pct = Math.max(4, (cat.value / totalInventoryValue) * 100);
                 return (
                   <div key={cat.name} data-testid={`cat-bar-${cat.name}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-base font-bold text-slate-700 flex items-center gap-3">
-                        <span className="text-2xl">{cat.icon}</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <span className="text-xl">{cat.icon}</span>
                         {cat.name}
                       </span>
-                      <span className="text-sm text-slate-900 font-black">
+                      <span className="text-xs text-slate-900 font-black">
                         {formatPeso(cat.value)}
                       </span>
                     </div>
-                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                       <div
                         className="h-full rounded-full transition-all duration-1000"
                         style={{ width: `${pct}%`, backgroundColor: cat.color }}

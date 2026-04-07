@@ -729,26 +729,26 @@ export default function MovementsPage() {
             {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-24 text-center flex flex-col items-center gap-4">
+          <div className="py-16 text-center flex flex-col items-center gap-3">
             {movements.length === 0 ? (
               <>
-                <span className="text-6xl">🔄</span>
-                <p className="text-xl font-bold text-slate-700">No movements recorded yet</p>
-                <p className="text-base text-slate-500">Record your first stock movement to get started.</p>
+                <span className="text-5xl">🔄</span>
+                <p className="text-lg font-bold text-slate-700">No movements recorded yet</p>
+                <p className="text-sm text-slate-500">Record your first stock movement to get started.</p>
                 <Button
-                  size="lg"
-                  className="bg-blue-700 hover:bg-blue-800 text-white mt-2 font-bold"
+                  size="default"
+                  className="bg-blue-700 hover:bg-blue-800 text-white mt-1 font-bold"
                   onClick={() => setShowModal(true)}
                   data-testid="empty-record-movement-btn"
                 >
-                  <Plus className="h-5 w-5 mr-2" /> Record Movement
+                  <Plus className="h-4 w-4 mr-1" /> Record Movement
                 </Button>
               </>
             ) : (
               <>
-                <span className="text-6xl">🔍</span>
-                <p className="text-xl font-bold text-slate-700">No results match your filters</p>
-                <p className="text-base text-slate-500">Try adjusting the search or date/type filters.</p>
+                <span className="text-5xl">🔍</span>
+                <p className="text-lg font-bold text-slate-700">No results match your filters</p>
+                <p className="text-sm text-slate-500">Try adjusting the search or date/type filters.</p>
               </>
             )}
           </div>
@@ -756,7 +756,7 @@ export default function MovementsPage() {
           <>
             {grouped.map((group) => (
               <div key={group.header}>
-                <div className="sticky top-0 bg-slate-100 px-6 py-3 text-sm font-black text-slate-500 uppercase tracking-widest border-b-2 border-slate-200 z-10">
+                <div className="sticky top-0 bg-slate-100 px-5 py-2 text-xs font-black text-slate-500 uppercase tracking-widest border-b-2 border-slate-200 z-10">
                   {group.header}
                 </div>
                 <div className="divide-y-2 divide-slate-100">
@@ -772,40 +772,40 @@ export default function MovementsPage() {
                         onClick={() => setExpandedId(isExpanded ? null : m.id)}
                         data-testid={`movement-row-${m.id}`}
                       >
-                        <div className="flex items-center gap-4 px-6 py-5">
+                        <div className="flex items-center gap-3 px-5 py-4">
                           <div className={cn(
-                            "flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center border-2 shadow-sm",
+                            "flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center border-2 shadow-sm",
                             movementMeta.iconBgClass,
                             isInbound ? "border-green-100" : isNeutral ? "border-slate-100" : "border-red-100"
                           )}>
-                            {isInbound ? <ArrowUpCircle className="h-7 w-7" /> : isNeutral ? <RefreshCw className="h-6 w-6" /> : <ArrowDownCircle className="h-7 w-7" />}
+                            {isInbound ? <ArrowUpCircle className="h-6 w-6" /> : isNeutral ? <RefreshCw className="h-5 w-5" /> : <ArrowDownCircle className="h-6 w-6" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-900 text-lg truncate">{m.product_name}</p>
-                            <p className="text-sm text-slate-500 font-bold truncate mt-1 uppercase tracking-wider">{m.reason}</p>
+                            <p className="font-bold text-slate-900 text-base truncate">{m.product_name}</p>
+                            <p className="text-xs text-slate-500 font-bold truncate mt-0.5 uppercase tracking-wider">{m.reason}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className={cn("text-lg font-black", movementMeta.textClass)}>
+                            <p className={cn("text-base font-black", movementMeta.textClass)}>
                               {getMovementDisplaySign(m.type)}{Math.abs(m.quantity)} {m.unit}
                             </p>
-                            <p className="text-sm text-slate-400 font-bold mt-1">{relativeTime(m.timestamp)}</p>
+                            <p className="text-xs text-slate-400 font-bold mt-0.5">{relativeTime(m.timestamp)}</p>
                           </div>
-                          <div className="flex-shrink-0 flex flex-col items-center gap-1 ml-2">
-                            <span className="text-xs font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md uppercase tracking-tighter">by {m.by}</span>
-                            <ChevronDown className={cn("h-5 w-5 text-slate-300 transition-transform", isExpanded && "rotate-180")} />
+                          <div className="flex-shrink-0 flex flex-col items-center gap-0.5 ml-1">
+                            <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase tracking-tighter">by {m.by}</span>
+                            <ChevronDown className={cn("h-4 w-4 text-slate-300 transition-transform", isExpanded && "rotate-180")} />
                           </div>
                         </div>
                         {isExpanded && (
-                          <div className="px-6 py-6 bg-slate-50 border-t-2 border-slate-100 text-base text-slate-700 space-y-3 animate-in fade-in duration-200">
-                            <p className="flex justify-between border-b border-slate-200 pb-2"><span className="font-bold text-slate-500">Reason:</span> <span>{m.reason}</span></p>
-                            <p className="flex justify-between border-b border-slate-200 pb-2"><span className="font-bold text-slate-500">Note:</span> <span>{m.note || "(none)"}</span></p>
+                          <div className="px-5 py-4 bg-slate-50 border-t-2 border-slate-100 text-sm text-slate-700 space-y-2 animate-in fade-in duration-200">
+                            <p className="flex justify-between border-b border-slate-200 pb-1.5"><span className="font-bold text-slate-500">Reason:</span> <span>{m.reason}</span></p>
+                            <p className="flex justify-between border-b border-slate-200 pb-1.5"><span className="font-bold text-slate-500">Note:</span> <span>{m.note || "(none)"}</span></p>
                             {m.quantity_before_base !== undefined && (
-                              <p className="flex justify-between border-b border-slate-200 pb-2">
+                              <p className="flex justify-between border-b border-slate-200 pb-1.5">
                                 <span className="font-bold text-slate-500">Stock Before / After:</span>{" "}
                                 <span className="font-black">{m.quantity_before_base} → {m.quantity_after_base} {m.unit}</span>
                               </p>
                             )}
-                            <p className="flex justify-between border-b border-slate-200 pb-2"><span className="font-bold text-slate-500">Recorded on:</span> <span>{new Date(m.timestamp).toLocaleString("en-PH", { dateStyle: "long", timeStyle: "short" })}</span></p>
+                            <p className="flex justify-between border-b border-slate-200 pb-1.5"><span className="font-bold text-slate-500">Recorded on:</span> <span>{new Date(m.timestamp).toLocaleString("en-PH", { dateStyle: "long", timeStyle: "short" })}</span></p>
                             <p className="flex justify-between"><span className="font-bold text-slate-500">Recorded by:</span> <span className="font-black text-blue-700">{m.by}</span></p>
                           </div>
                         )}
@@ -818,25 +818,25 @@ export default function MovementsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-5 border-t-2 border-slate-100 bg-slate-50">
+              <div className="flex items-center justify-between px-5 py-4 border-t-2 border-slate-100 bg-slate-50">
                 <Button
                   variant="outline"
-                  size="lg"
+                  size="default"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="gap-2 font-bold"
+                  className="gap-1.5 font-bold"
                 >
-                  <ChevronLeft className="h-5 w-5" /> Previous
+                  <ChevronLeft className="h-4 w-4" /> Previous
                 </Button>
-                <span className="text-base font-bold text-slate-500">Page {page} of {totalPages}</span>
+                <span className="text-sm font-bold text-slate-500">Page {page} of {totalPages}</span>
                 <Button
                   variant="outline"
-                  size="lg"
+                  size="default"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="gap-2 font-bold"
+                  className="gap-1.5 font-bold"
                 >
-                  Next <ChevronRight className="h-5 w-5" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             )}
